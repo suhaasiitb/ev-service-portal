@@ -34,8 +34,8 @@ jobs:
 
       - name: 📂 Copy /admin folder manually into dist
         run: |
-          mkdir -p ./site/dist/admin
-          cp -r ./site/public/admin/* ./site/dist/admin/
+          mkdir -p ./dist/admin
+          cp -r ./public/admin/* ./dist/admin/
 
       - name: 🚀 Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
