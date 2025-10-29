@@ -26,10 +26,12 @@ jobs:
         with:
           node-version: 20
 
-      - name: 📦 Install dependencies
-        run: npm ci
+      - name: 📦 Install dependencies (include dev)
+        run: npm install
 
       - name: 🏗️ Build Vite project
+        env:
+          NODE_ENV: development   # <— important
         run: npm run build
 
       - name: 🚀 Deploy to GitHub Pages
