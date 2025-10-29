@@ -17,7 +17,7 @@ cat > site/public/admin/index.html <<'HTML'
 </head>
 <script>
   if (!sessionStorage.getItem('ev_admin')) {
-    window.location.href = '/admin/login.html';
+    window.location.href = '/ev-service-portal/admin/login.html';
   }
 </script>
 <body class="min-h-screen p-6">
@@ -57,7 +57,7 @@ cat > site/public/admin/index.html <<'HTML'
     </section>
   </div>
 
-  <script src="/admin/admin.js"></script>
+  <script src="/ev-service-portal/admin/admin.js"></script>
 </body>
 </html>
 HTML
