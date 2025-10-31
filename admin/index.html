@@ -1,0 +1,63 @@
+cat > site/public/admin/index.html <<'HTML'
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>EV Service Portal — Admin</title>
+
+  <!-- Tailwind CDN (quick dev) - production build will use your site styles -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <style>
+    /* tiny local overrides for clear layout */
+    body { background: #f7fafc; }
+    .card { background: white; border-radius: 12px; box-shadow: 0 6px 18px rgba(4,10,25,0.06); }
+  </style>
+</head>
+<script>
+  if (!sessionStorage.getItem('ev_admin')) {
+    window.location.href = '/ev-service-portal/admin/login.html';
+  }
+</script>
+<body class="min-h-screen p-6">
+  <div class="max-w-6xl mx-auto">
+    <header class="mb-6 flex items-center justify-between">
+      <h1 class="text-2xl font-semibold">EV Service Portal — Admin</h1>
+      <div class="text-sm text-gray-600">Signed in as <strong>Admin</strong></div>
+    </header>
+
+    <section class="grid grid-cols-3 gap-6 mb-6">
+      <div class="card p-4">
+        <h2 class="text-sm text-gray-500">Open Tickets</h2>
+        <div id="openCount" class="text-3xl font-bold mt-2">—</div>
+      </div>
+      <div class="card p-4">
+        <h2 class="text-sm text-gray-500">In-Progress</h2>
+        <div id="inProgressCount" class="text-3xl font-bold mt-2">—</div>
+      </div>
+      <div class="card p-4">
+        <h2 class="text-sm text-gray-500">Closed (30d)</h2>
+        <div id="closedCount" class="text-3xl font-bold mt-2">—</div>
+      </div>
+    </section>
+
+    <section>
+      <div class="card p-4 mb-4">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="font-medium text-lg">Recent Tickets</h3>
+          <div class="flex items-center gap-2">
+            <input id="filter" type="text" placeholder="Filter by bike or station" class="px-3 py-1 border rounded" />
+            <button id="refreshBtn" class="px-3 py-1 bg-indigo-600 text-white rounded">Refresh</button>
+          </div>
+        </div>
+
+        <div id="tickets" class="divide-y"></div>
+      </div>
+    </section>
+  </div>
+
+  <script src="/ev-service-portal/admin/admin.js"></script>
+</body>
+</html>
+HTML

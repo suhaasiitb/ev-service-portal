@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Admin Login — EV Service Portal</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="flex items-center justify-center min-h-screen bg-gray-100">
+  <div class="bg-white p-8 rounded-2xl shadow w-96">
+    <h1 class="text-xl font-semibold mb-4 text-center">Admin Login</h1>
+    <form id="loginForm" class="space-y-4">
+      <div>
+        <label class="block text-sm mb-1">Username</label>
+        <input id="user" type="text" class="w-full border rounded px-3 py-2" required />
+      </div>
+      <div>
+        <label class="block text-sm mb-1">Password</label>
+        <input id="pass" type="password" class="w-full border rounded px-3 py-2" required />
+      </div>
+      <button class="w-full bg-indigo-600 text-white rounded py-2">Sign In</button>
+      <p id="msg" class="text-sm text-red-600 text-center"></p>
+    </form>
+  </div>
+
+  <script>
+    const ADMIN_CRED = { user: 'admin', pass: 'ucadmin@123' };
+    const form = document.getElementById('loginForm');
+    const msg = document.getElementById('msg');
+
+    form.addEventListener('submit', e => {
+      e.preventDefault();
+      const u = document.getElementById('user').value.trim();
+      const p = document.getElementById('pass').value.trim();
+
+      if (u === ADMIN_CRED.user && p === ADMIN_CRED.pass) {
+        sessionStorage.setItem('ev_admin', 'true');
+        window.location.href = '/ev-service-portal/admin/index.html';
+      } else {
+        msg.textContent = 'Invalid credentials';
+      }
+    });
+  </script>
+</body>
+</html>
