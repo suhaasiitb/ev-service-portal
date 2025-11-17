@@ -12,10 +12,12 @@ export default function DashboardWrapper() {
       if (!data.session) navigate("/");
       else setSession(data.session);
     });
+
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
       if (!session) navigate("/");
       else setSession(session);
     });
+
     return () => listener.subscription.unsubscribe();
   }, []);
 

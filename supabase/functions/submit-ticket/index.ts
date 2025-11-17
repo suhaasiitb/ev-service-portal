@@ -44,7 +44,7 @@ serve(async (req) => {
       );
     }
 
-    // Parse the multipart form data
+    // Parse FormData
     const formData = await req.formData();
     const bike_number_text = formData.get("bike_number_text")?.toString() ?? "";
     const issue_description = formData.get("issue_description")?.toString() ?? "";
@@ -66,7 +66,14 @@ serve(async (req) => {
     let image_path = null;
     if (image) {
       try {
-        const fileName = `${Date.now()}_${image.name}`;
+        // 🔥 SAFARI-SAFE, STORAGE-SAFE FILENAME CLEANING
+        const cleanedName = image.name
+          .replace(/\s+/g, "_")            // Convert ALL spaces to _
+          .replace(/[^a-zA-Z0-9._-]/g, "") // Remove unsafe characters
+          .toLowerCase();
+
+        const fileName = `${Date.now()}_${cleanedName}`;
+
         const arrayBuffer = await image.arrayBuffer();
         const uint8Array = new Uint8Array(arrayBuffer);
 
@@ -89,21 +96,27 @@ serve(async (req) => {
       }
     }
 
-    // Fetch station_id from bikes table (if exists)
+    // Fetch bike_id and station_id from bikes table (if exists)
     let station_id: string | null = null;
+    let bike_id: string | null = null;  
     try {
       const { data: bike, error: bikeError } = await supabase
         .from("bikes")
-        .select("station_id")
+        .select("id, station_id")
         .eq("bike_number", bike_number_text)
         .maybeSingle();
-
+      console.log("Bike lookup returned:", bike); 
+      console.log("Keys:", Object.keys(bike || {}));  
+      console.log("bike_id:", bike?.id); 
+      console.log("bike.ID:",bike?.ID); 
+      
       if (bikeError) {
         console.warn("Bike lookup error:", bikeError.message);
       }
 
       if (bike) {
-        station_id = bike.station_id;
+        bike_id = bike.id;
+        station_id = bike.station_id; 
       }
     } catch (lookupErr) {
       console.error("Station lookup exception:", lookupErr.message);
@@ -113,6 +126,7 @@ serve(async (req) => {
     const { error: insertError } = await supabase.from("tickets").insert([
       {
         bike_number_text,
+        bike_id,
         issue_description,
         location,
         contact,
@@ -128,7 +142,7 @@ serve(async (req) => {
       throw insertError;
     }
 
-    // ✅ Success response
+    // SUCCESS RESPONSE
     return new Response(
       JSON.stringify({
         success: true,
@@ -143,7 +157,7 @@ serve(async (req) => {
       }
     );
   } catch (err) {
-    // 🧩 Ensure consistent JSON error response
+    // Always return JSON error
     console.error("Submit Ticket Error:", err?.message || err);
     return new Response(
       JSON.stringify({
