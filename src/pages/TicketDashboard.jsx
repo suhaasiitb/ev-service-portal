@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { supabase } from "../lib/supabaseClient";
 
 export default function TicketDashboard({ session }) {
@@ -18,7 +18,9 @@ export default function TicketDashboard({ session }) {
     setLoading(true);
     const { data, error } = await supabase
       .from("tickets")
-      .select("id, bike_id, bike_number_text, station_id, issue_description, status, reported_at, closed_at")
+      .select(
+        "id, bike_id, bike_number_text, station_id, closed_by, issue_description, status, reported_at, closed_at"
+      )
       .order("reported_at", { ascending: false });
 
     if (error) setMessage("Error: " + error.message);
@@ -27,9 +29,11 @@ export default function TicketDashboard({ session }) {
     setLoading(false);
   }
 
-  useEffect(() => { fetchTickets(); }, []);
+  useEffect(() => {
+    fetchTickets();
+  }, []);
 
-  // Resolve the bike model using Option C logic
+  // Resolve bike model
   async function resolveModelId(ticket) {
     if (ticket.bike_id) {
       const { data: byId } = await supabase
@@ -52,13 +56,14 @@ export default function TicketDashboard({ session }) {
     return null;
   }
 
-  // Fetch compatible parts using model_id
   async function fetchCompatibleParts(ticket) {
     const model_id = await resolveModelId(ticket);
 
     if (!model_id) {
       setMessage("⚠ Could not determine bike model. Showing all parts.");
-      const { data: all } = await supabase.from("parts_catalog").select("id, part_name, sku");
+      const { data: all } = await supabase
+        .from("parts_catalog")
+        .select("id, part_name, sku");
       setParts(all || []);
       return;
     }
@@ -70,16 +75,20 @@ export default function TicketDashboard({ session }) {
 
     if (mapErr) {
       setMessage("⚠ Failed to fetch model-map parts. Showing all parts.");
-      const { data: all } = await supabase.from("parts_catalog").select("id, part_name, sku");
+      const { data: all } = await supabase
+        .from("parts_catalog")
+        .select("id, part_name, sku");
       setParts(all || []);
       return;
     }
 
-    const partIds = mappings.map(m => m.part_id);
+    const partIds = mappings.map((m) => m.part_id);
 
     if (partIds.length === 0) {
       setMessage("⚠ No parts mapped to this bike model. Showing all parts.");
-      const { data: all } = await supabase.from("parts_catalog").select("id, part_name, sku");
+      const { data: all } = await supabase
+        .from("parts_catalog")
+        .select("id, part_name, sku");
       setParts(all || []);
       return;
     }
@@ -98,7 +107,6 @@ export default function TicketDashboard({ session }) {
     setParts(compatible);
   }
 
-  // Fetch engineers for this ticket's station
   async function fetchEngineers(ticket) {
     const { data, error } = await supabase
       .from("engineers")
@@ -124,7 +132,6 @@ export default function TicketDashboard({ session }) {
     setShowModal(true);
   }
 
-  // Add part row
   function addPartRow() {
     setPartsUsed([...partsUsed, { part_id: "", quantity: 1 }]);
   }
@@ -139,17 +146,15 @@ export default function TicketDashboard({ session }) {
     setPartsUsed(updated);
   }
 
-  // Close ticket and log parts + engineer
   async function handleCloseWithParts() {
     try {
       if (!selectedEngineer) {
-        setMessage("❌ Please select the engineer who serviced this ticket.");
+        setMessage("❌ Please select the engineer.");
         return;
       }
 
       setMessage("");
 
-      // Insert parts
       for (let p of partsUsed) {
         if (!p.part_id) continue;
 
@@ -157,20 +162,19 @@ export default function TicketDashboard({ session }) {
           {
             ticket_id: activeTicket.id,
             part_id: p.part_id,
-            quantity: parseInt(p.quantity)
-          }
+            quantity: parseInt(p.quantity),
+          },
         ]);
 
         if (error) throw error;
       }
 
-      // Close ticket with engineer id
       const { error: closeErr } = await supabase
         .from("tickets")
         .update({
           status: "closed",
           closed_at: new Date().toISOString(),
-          closed_by: selectedEngineer
+          closed_by: selectedEngineer,
         })
         .eq("id", activeTicket.id);
 
@@ -179,18 +183,127 @@ export default function TicketDashboard({ session }) {
       setMessage("✅ Ticket closed and parts logged");
       setShowModal(false);
       fetchTickets();
-
     } catch (err) {
       setMessage("❌ Failed: " + err.message);
     }
   }
 
+  // -------------------------------
+  // --- METRICS COMPUTATION ---
+  // -------------------------------
+
+  const today = new Date().toISOString().split("T")[0];
+
+  const metrics = useMemo(() => {
+    const todayTickets = tickets.filter((t) =>
+      t.reported_at.startsWith(today)
+    );
+
+    const todayClosed = tickets.filter(
+      (t) => t.closed_at && t.closed_at.startsWith(today)
+    );
+
+    const openNow = tickets.filter((t) => t.status === "open");
+
+    const avgTAT =
+      todayClosed.length > 0
+        ? (
+            todayClosed.reduce((sum, t) => {
+              const start = new Date(t.reported_at);
+              const end = new Date(t.closed_at);
+              return sum + (end - start) / 60000;
+            }, 0) / todayClosed.length
+          ).toFixed(1)
+        : 0;
+
+    // Engineer performance last 7 days
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+    const engMap = {};
+
+    tickets.forEach((t) => {
+      if (!t.closed_by || !t.closed_at) return;
+      if (new Date(t.closed_at) < sevenDaysAgo) return;
+
+      if (!engMap[t.closed_by]) {
+        engMap[t.closed_by] = 1;
+      } else {
+        engMap[t.closed_by]++;
+      }
+    });
+
+    return {
+      totalToday: todayTickets.length,
+      closedToday: todayClosed.length,
+      openNow: openNow.length,
+      avgTAT,
+      engineerPerformance: engMap,
+    };
+  }, [tickets]);
+
+  // -------------------------------
+  // --- RENDER UI ---
+  // -------------------------------
+
   return (
     <div className="min-h-screen bg-gray-50 p-6">
-      <h1 className="text-2xl font-bold text-blue-600 mb-4">Station Dashboard</h1>
+      <h1 className="text-2xl font-bold text-blue-600 mb-4">
+        Station Dashboard
+      </h1>
 
       {message && <p className="mb-3 text-green-600">{message}</p>}
 
+      {/* KPI Metric Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <div className="bg-white shadow rounded p-4">
+          <p className="text-gray-600 text-sm">Tickets Today</p>
+          <p className="text-2xl font-bold">{metrics.totalToday}</p>
+        </div>
+
+        <div className="bg-white shadow rounded p-4">
+          <p className="text-gray-600 text-sm">Closed Today</p>
+          <p className="text-2xl font-bold">{metrics.closedToday}</p>
+        </div>
+
+        <div className="bg-white shadow rounded p-4">
+          <p className="text-gray-600 text-sm">Open Tickets</p>
+          <p className="text-2xl font-bold">{metrics.openNow}</p>
+        </ div>
+
+        <div className="bg-white shadow rounded p-4">
+          <p className="text-gray-600 text-sm">Avg TAT (mins)</p>
+          <p className="text-2xl font-bold">{metrics.avgTAT}</p>
+        </div>
+      </div>
+
+      {/* Engineer Performance */}
+      <h2 className="text-xl font-bold mb-2">Engineer Performance (Last 7 Days)</h2>
+
+      <table className="w-full border mb-6">
+        <thead>
+          <tr className="bg-gray-200 text-left">
+            <th className="p-2">Engineer</th>
+            <th className="p-2">Tickets Closed</th>
+          </tr>
+        </thead>
+        <tbody>
+          {Object.entries(metrics.engineerPerformance).map(
+            ([engineer_id, count]) => {
+              const eng = engineers.find((e) => e.id === engineer_id);
+
+              return (
+                <tr key={engineer_id} className="border-b">
+                  <td className="p-2">{eng ? eng.name : "Unknown"}</td>
+                  <td className="p-2">{count}</td>
+                </tr>
+              );
+            }
+          )}
+        </tbody>
+      </table>
+
+      {/* ---------------- Ticket Table ---------------- */}
       {loading ? (
         <p>Loading tickets...</p>
       ) : (
@@ -204,13 +317,16 @@ export default function TicketDashboard({ session }) {
               <th className="p-2">Action</th>
             </tr>
           </thead>
+
           <tbody>
             {tickets.map((t) => (
               <tr key={t.id} className="border-b">
                 <td className="p-2">{t.bike_number_text}</td>
                 <td className="p-2">{t.issue_description}</td>
                 <td className="p-2">{t.status}</td>
-                <td className="p-2">{new Date(t.reported_at).toLocaleString()}</td>
+                <td className="p-2">
+                  {new Date(t.reported_at).toLocaleString()}
+                </td>
                 <td className="p-2">
                   {t.status === "open" ? (
                     <button
@@ -229,13 +345,15 @@ export default function TicketDashboard({ session }) {
         </table>
       )}
 
-      {/* Modal */}
+      {/* --- Modal --- */}
       {showModal && (
         <div className="fixed inset-0 bg-black bg-opacity-40 flex justify-center items-center">
           <div className="bg-white p-6 rounded-xl w-full max-w-lg shadow-xl">
-            <h2 className="text-xl font-bold mb-4">Close Ticket & Log Parts</h2>
+            <h2 className="text-xl font-bold mb-4">
+              Close Ticket & Log Parts
+            </h2>
 
-            {/* Engineer Selection */}
+            {/* Engineer Dropdown */}
             <label className="block mb-2 font-semibold">Engineer</label>
             <select
               className="border p-2 rounded w-full mb-4"
@@ -250,13 +368,15 @@ export default function TicketDashboard({ session }) {
               ))}
             </select>
 
-            {/* Parts Section */}
+            {/* Parts */}
             {partsUsed.map((row, index) => (
               <div key={index} className="flex gap-2 mb-3">
                 <select
                   className="border p-2 flex-1 rounded"
                   value={row.part_id}
-                  onChange={(e) => updatePartRow(index, "part_id", e.target.value)}
+                  onChange={(e) =>
+                    updatePartRow(index, "part_id", e.target.value)
+                  }
                 >
                   <option value="">Select compatible part</option>
                   {parts.map((p) => (
@@ -271,7 +391,9 @@ export default function TicketDashboard({ session }) {
                   min="1"
                   className="border p-2 w-20 rounded"
                   value={row.quantity}
-                  onChange={(e) => updatePartRow(index, "quantity", e.target.value)}
+                  onChange={(e) =>
+                    updatePartRow(index, "quantity", e.target.value)
+                  }
                 />
 
                 {index > 0 && (
@@ -299,6 +421,7 @@ export default function TicketDashboard({ session }) {
               >
                 Cancel
               </button>
+
               <button
                 onClick={handleCloseWithParts}
                 className="px-4 py-2 rounded bg-green-600 text-white"
