@@ -9,13 +9,17 @@ export default function TicketForm() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
 
+  const issuePresets = [
+    "Bike not working / Stopped",
+    "Throttle / Motor symbol",
+  ];
+
   async function handleSubmit(e) {
     e.preventDefault();
     setLoading(true);
     setMessage("");
 
     try {
-      // Step 1: Build FormData to send to Edge Function
       const formData = new FormData();
       formData.append("bike_number_text", bikeNumber.trim());
       formData.append("issue_description", issue.trim());
@@ -23,13 +27,11 @@ export default function TicketForm() {
       formData.append("contact", contact.trim());
       if (image) formData.append("image", image);
 
-      // Step 2: Send request to Supabase Edge Function
       const response = await fetch(
         "https://qxubkvaahbfacabajjwo.functions.supabase.co/submit-ticket",
         {
           method: "POST",
           headers: {
-            // only include Authorization header (do NOT set Content-Type manually for FormData)
             Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
           },
           body: formData,
@@ -37,14 +39,11 @@ export default function TicketForm() {
       );
 
       const result = await response.json();
-      console.log("Edge Function Response:", result);
 
       if (!response.ok) {
-        console.error("Edge Function Error:", result);
-        throw new Error(result.error || result.message || "Failed to submit ticket");
+        throw new Error(result.error || "Failed to submit ticket");
       }
 
-      // Step 3: Clear form after success
       setMessage("✅ Ticket logged successfully!");
       setBikeNumber("");
       setIssue("");
@@ -52,7 +51,6 @@ export default function TicketForm() {
       setContact("");
       setImage(null);
     } catch (err) {
-      console.error("Submission Error:", err);
       setMessage("❌ Failed: " + err.message);
     } finally {
       setLoading(false);
@@ -75,8 +73,28 @@ export default function TicketForm() {
           className="w-full border p-2 rounded-lg"
         />
 
+        {/* Quick Issue Buttons */}
+        <div>
+          <p className="text-sm font-medium text-gray-600 mb-2">
+            Select issue (optional)
+          </p>
+          <div className="flex gap-2 flex-wrap">
+            {issuePresets.map((preset) => (
+              <button
+                key={preset}
+                type="button"
+                onClick={() => setIssue(preset)}
+                className="px-3 py-1 text-sm rounded-full border bg-gray-100 hover:bg-blue-100"
+              >
+                {preset}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Issue Textarea */}
         <textarea
-          placeholder="Describe the issue"
+          placeholder="Describe the issue in detail"
           value={issue}
           onChange={(e) => setIssue(e.target.value)}
           required

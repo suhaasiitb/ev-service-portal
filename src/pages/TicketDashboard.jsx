@@ -4,7 +4,7 @@ import { supabase } from "../lib/supabaseClient";
 const TICKET_PAGE_SIZE = 15;
 const WALKIN_PAGE_SIZE = 15;
 
-export default function TicketDashboard({ session }) {
+export default function TicketDashboard({ session , stationName }) {
   const [tickets, setTickets] = useState([]);
   const [walkins, setWalkins] = useState([]);
 
@@ -549,13 +549,14 @@ export default function TicketDashboard({ session }) {
         <div className="flex flex-col sm:flex-row justify-between gap-4 items-start sm:items-center">
           <div>
             <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-slate-100">
-              Nanded Station
+              {stationName}
             </h1>
             <p className="text-sm text-slate-400 mt-1">
               Monitor tickets, walk-ins and engineer performance.
             </p>
-          </div>
+        </div>
 
+        <div className="flex gap-3">
           <button
             onClick={() => {
               setWalkInBike("");
@@ -570,12 +571,22 @@ export default function TicketDashboard({ session }) {
                 fetchCompatibleParts({ bike_number_text: "" });
               }
             }}
-            className="inline-flex items-center gap-2 rounded-full bg-blue-600 px-5 py-2.5 text-sm font-medium text-white shadow-lg shadow-blue-500/30 hover:bg-blue-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 transition"
+            className="inline-flex items-center gap-2 rounded-full bg-blue-600 px-5 py-2.5 text-sm font-medium text-white shadow-lg shadow-blue-500/30 hover:bg-blue-500 transition"
           >
             <span className="text-lg">＋</span>
             <span>New Walk-In Job</span>
           </button>
+
+          <button
+            onClick={async () => {
+              await supabase.auth.signOut();
+            }}
+            className="inline-flex items-center rounded-full border border-slate-600 px-4 py-2.5 text-sm text-slate-200 hover:bg-slate-800 transition"
+          >
+            Logout
+          </button>
         </div>
+      </div>
 
         {/* MESSAGE / ALERT */}
         {message && (
