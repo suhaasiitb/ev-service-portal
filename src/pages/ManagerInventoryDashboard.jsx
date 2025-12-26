@@ -22,7 +22,10 @@ export default function ManagerInventoryDashboard() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [page, setPage] = useState(1);
 
-  const [SearchTerm, setSearchTerm] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
+
+  const [qtySort, setQtySort] = useState(null); 
+  // null | "asc" | "desc"
 
   // 🔹 ADD: Edit inventory modal state
   const [showEditModal, setShowEditModal] = useState(false);
@@ -173,12 +176,11 @@ export default function ManagerInventoryDashboard() {
     (s) => s.stationId === selectedStationId
   );
 
-  const fileteredItems = currentStation
+  const filteredItems = currentStation
     ? currentStation.items.filter((row) => {
-        if (!SearchTerm) return true;
+        if (!searchTerm) return true;
 
-        const q= SearchTerm.toLowerCase();
-
+        const q= searchTerm.toLowerCase();
         const partName= row.parts_catalog?.part_name?.toLowerCase() || "";
         const sku= row.parts_catalog?.sku?.toLowerCase() || "";
         const models= (row.model_names || []).join(", ").toLowerCase();
@@ -189,14 +191,22 @@ export default function ManagerInventoryDashboard() {
           models.includes(q)
         );
       })
-    : [];
+      .sort((a, b) => {
+        if (!qtySort)return 0;
 
-  const totalItems = fileteredItems.length;
+        const qa= a.quantity ?? 0;
+        const qb= b.quantity ?? 0;
+
+        return qtySort === "asc" ? qa - qb : qb - qa;
+      })
+  : [];
+
+  const totalItems = filteredItems.length;
   const totalPages =
     totalItems > 0 ? Math.ceil(totalItems / ITEMS_PER_PAGE) : 1;
   const pageSafe = Math.min(page, totalPages);
   const startIndex = (pageSafe - 1) * ITEMS_PER_PAGE;
-  const pageItems = fileteredItems.slice(
+  const pageItems = filteredItems.slice(
     startIndex,
     startIndex + ITEMS_PER_PAGE
   );
@@ -269,7 +279,7 @@ export default function ManagerInventoryDashboard() {
       .from("inventory_master")
       .update({
         quantity: newQty,
-        last_updated_by_manager: appUser.Id,
+        last_updated_by : appUser.id,
         updated_at: new Date().toISOString(),
       })
       .eq("id", editRow.id);
@@ -346,7 +356,7 @@ export default function ManagerInventoryDashboard() {
           </button>
         </div>
 
-        {message && <p className= {'mb-4 ${message.startswith("✅") ? "text-green-600":"text-red-600"}'}>{message}</p>}
+        {message && <p className= {`mb-4 ${message.startsWith("✅") ? "text-green-600":"text-red-600"}`}>{message}</p>}
 
         {loading ? (
           <p>Loading inventory...</p>
@@ -380,19 +390,49 @@ export default function ManagerInventoryDashboard() {
             {/* Snapshot + Table (UNCHANGED) */}
             {currentStation && (
               <div className="bg-white rounded-xl shadow p-4">
+
+                {/* Metrics + Search Bar */}
+                <div className="mb-4 space-y-3">
+
+                  {/* Metrics strip */}
+                  <div className= "grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+                    <div className="bg-gray-50 rounded p-2">
+                      <p className="text-gray-500">Total SKUs</p>
+                      <p className="text-lg font-bold">
+                        {currentStation.summary.totalSkus}
+                      </p>
+                    </div>
+                    <div className="bg-gray-50 rounded p-2">
+                      <p className="text-gray-500">Total Quantity</p>
+                      <p className="text-lg font-bold">
+                        {currentStation.summary.totalQty}
+                      </p>
+                    </div>
+                    <div className="bg-gray-50 rounded p-2">
+                      <p className="text-gray-500">Total Stock Value</p>
+                      <p className="text-lg font-bold">
+                        ₹{currentStation.summary.totalValue.toFixed(0)}
+                      </p>
+                    </div>
+                    <div className="bg-gray-50 rounded p-2">
+                      <p className="text-gray-500">Low Stock Items</p>
+                      <p className="text-lg font-bold">
+                        {currentStation.summary.lowStockCount}
+                      </p>
+                    </div>
+                  </div>
                 {/* Search Bar */}
-                <div className="mb-3">
                   <input
                     type="text"
                     placeholder="Search by Part Name, SKU, or Models..."
-                    value={SearchTerm}
+                    value={searchTerm}
                     onChange={(e) => {
                       setSearchTerm(e.target.value);
                       setPage(1); //reset pagination on search
                     }}
                     className="border rounded px-3 py-2 text-sm w-full md:w-1/3"
                   />
-                </div>
+                </div>                
                 {/* summary, table, pagination untouched */}
                 {/* ONLY Edit button enabled */}
                 {/* ...existing JSX above... */}
@@ -403,7 +443,20 @@ export default function ManagerInventoryDashboard() {
                       <th className="p-2 border-r">Part</th>
                       <th className="p-2 border-r">SKU</th>
                       <th className="p-2 border-r">Models</th>
-                      <th className="p-2 border-r">Qty</th>
+                      <th 
+                        className="p-2 border-r cursor-pointer select-none"
+                        onClick={() => {
+                          setQtySort((prev) => 
+                            prev === null ? "asc" : prev === "asc" ? "desc" : null
+                          );
+                          setPage(1);
+                        }}
+                      >
+                        Qty{" "}
+                        {qtySort === "asc" && "↑"}
+                        {qtySort === "desc" && "↓"}
+                      </th>
+                          
                       <th className="p-2 border-r">Reorder</th>
                       <th className="p-2 border-r">Unit Cost</th>
                       <th className="p-2 border-r">Stock Value</th>
