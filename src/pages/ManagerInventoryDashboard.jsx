@@ -1,15 +1,9 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabaseClient";
 
+
 const ITEMS_PER_PAGE = 15;
 
-async function handleLogout() {
-  try {
-    await supabase.auth.signOut();
-  } catch (err) {
-    console.error("Logout failed", err);
-  }
-}
 
 export default function ManagerInventoryDashboard() {
   const [inventoryByStation, setInventoryByStation] = useState([]);
@@ -25,6 +19,8 @@ export default function ManagerInventoryDashboard() {
   const [searchTerm, setSearchTerm] = useState("");
 
   const [qtySort, setQtySort] = useState(null); 
+
+
   // null | "asc" | "desc"
 
   // 🔹 ADD: Edit inventory modal state
@@ -300,61 +296,10 @@ export default function ManagerInventoryDashboard() {
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
-      {/* Sidebar */}
-      <div
-        className={`${
-          sidebarOpen ? "w-56" : "w-12"
-        } bg-slate-900 text-white flex flex-col transition-all duration-200`}
-      >
-        <button
-          className="p-2 text-xs hover:bg-slate-800"
-          onClick={() => setSidebarOpen((o) => !o)}
-        >
-          {sidebarOpen ? "⟨" : "⟩"}
-        </button>
-
-        {sidebarOpen && (
-          <div className="px-3 py-2 text-sm font-semibold border-b border-slate-700">
-            Manager Panel
-          </div>
-        )}
-
-        <nav className="flex-1 text-sm">
-          {sidebarOpen && (
-            <>
-              <div className="px-3 py-2 text-slate-400 border-b border-slate-800 text-xs uppercase">
-                Sections
-              </div>
-              <button className="w-full text-left px-3 py-2 bg-slate-800 text-white text-sm">
-                Inventory
-              </button>
-              <button className="w-full text-left px-3 py-2 text-slate-500 text-sm cursor-not-allowed">
-                Tickets (soon)
-              </button>
-              <button className="w-full text-left px-3 py-2 text-slate-500 text-sm cursor-not-allowed">
-                Walk-Ins (soon)
-              </button>
-              <button className="w-full text-left px-3 py-2 text-slate-500 text-sm cursor-not-allowed">
-                KPIs & Charts (soon)
-              </button>
-            </>
-          )}
-        </nav>
-      </div>
 
       {/* Main Content */}
       <div className="flex-1 p-6">
-        <div className="flex justify-between items-center mb-4">
-          <h1 className="text-2xl font-bold text-blue-700">
-            Manager - Inventory Dashboard
-          </h1>
-          <button
-            onClick={handleLogout}
-            className="px-4 py-2 text-sm rounded bg-red-600 text-white hover:bg-red-700"
-          >
-            Logout
-          </button>
-        </div>
+        
 
         {message && <p className= {`mb-4 ${message.startsWith("✅") ? "text-green-600":"text-red-600"}`}>{message}</p>}
 

@@ -47,6 +47,8 @@ ReactDOM.createRoot(document.getElementById("root")).render(
           <Route path="/ticket" element={<TicketPage />} />
           <Route path="/dashboard" element={<DashboardWrapper />} />
           <Route path="/manager" element={<ManagerWrapper />} />
+          <Route path="/manager/tickets" element={<ManagerWrapper />} />
+          <Route path="/manager/walkins" element={<ManagerWrapper />} />
         </Routes>
       </AuthWatcher>
     </BrowserRouter>

@@ -1,12 +1,17 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabaseClient";
+import { useLocation } from "react-router-dom";
+import ManagerLayout from "../layouts/ManagerLayout.jsx";
 import ManagerInventoryDashboard from "./ManagerInventoryDashboard";
+import ManagerTickets from "./ManagerTickets";
+import ManagerWalkins from "./ManagerWalkins.jsx";
 
 export default function ManagerWrapper() {
   const [session, setSession] = useState(null);
   const [roleChecked, setRoleChecked] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
 
   useEffect(() => {
     async function init() {
@@ -43,11 +48,23 @@ export default function ManagerWrapper() {
     );
 
     return () => listener.subscription.unsubscribe();
-  }, []);
+  }, [location.pathname]);
 
   if (!session || !roleChecked) {
     return <p className="p-10 text-center">Loading manager dashboard...</p>;
   }
 
-  return <ManagerInventoryDashboard />;
+  let content = <ManagerInventoryDashboard/>;
+
+  // route-based rendering for manager pages
+  if (location.pathname === "/manager/tickets") {
+    content = <ManagerTickets />;
+  }
+
+  if (location.pathname === "/manager/walkins") {
+    return<ManagerWalkins />;
+  }
+
+  //default manager landing page
+  return <ManagerLayout>{content}</ManagerLayout>;
 }
