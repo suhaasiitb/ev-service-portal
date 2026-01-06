@@ -39,12 +39,42 @@ export default function ManagerWalkins() {
     // 2️⃣ Walk-in parts (aggregate)
     const { data: partData } = await supabase
       .from("walkin_parts")
-      .select("walkin_id, total_cost");
+      .select("walkin_id, part_id ,quantity");
+
+    // parts catalog (cost)
+    const { data: partsCatalog } = await supabase
+      .from("parts_catalog")
+      .select("id, part_name ,unit_cost");
+
+    const partNameLookup = {};
+    (partsCatalog || []).forEach(p => {
+      partNameLookup[p.id] = p.part_name;
+    });
+
+    // Build parts-used map per walk-in
+    const partsUsedMap = {};
+    (partData || []).forEach(p => {
+      const name = partNameLookup[p.part_id];
+      if (!name) return;
+
+      if (!partsUsedMap[p.walkin_id]) {
+        partsUsedMap[p.walkin_id] = [];
+      }
+
+      partsUsedMap[p.walkin_id].push(name);
+    });
+    
+    const partCostLookup = {};
+    (partsCatalog || []).forEach(p => {
+      partCostLookup[p.id] = p.unit_cost || 0;
+    });
 
     const partCostMap = {};
     (partData || []).forEach(p => {
+      const unitCost = partCostLookup[p.part_id] || 0;
+      const cost = unitCost * (p.quantity || 0);
       partCostMap[p.walkin_id] =
-        (partCostMap[p.walkin_id] || 0) + (p.total_cost || 0);
+        (partCostMap[p.walkin_id] || 0) + cost;
     });
 
     // 3️⃣ Stations
@@ -85,6 +115,7 @@ export default function ManagerWalkins() {
       (walkinData || []).map(w => ({
         ...w,
         parts_cost: partCostMap[w.id] || 0,
+        parts_used: partsUsedMap[w.id] || [],
       }))
     );
 
@@ -119,16 +150,33 @@ export default function ManagerWalkins() {
   );
 
   // 📊 KPIs (today)
-  const today = new Date().toISOString().split("T")[0];
-  const todayItems = walkins.filter(w =>
-    w.logged_at.startsWith(today)
-  );
+  const todayStr = new Date().toISOString().split("T")[0];
+  
+  const kpiSource = useMemo(() => {
+    //No date selected -> today
+    if (!fromDate && !toDate) {
+      return walkins.filter(w => w.logged_at.startsWith(todayStr));
+    }
+    //date range selected
+    return walkins.filter(w => {
+        if (fromDate && new Date(w.logged_at) < new Date(fromDate)) return false;
+        if (toDate && new Date(w.logged_at) > new Date(toDate)) return false;
+        return true;
+    });
+  }, [walkins, fromDate, toDate]);
 
-  const totalToday = todayItems.length;
-  const totalCostToday = todayItems.reduce(
-    (s, w) => s + (w.cost_charged || 0),
+  const walkinsCount = kpiSource.length;
+
+  const costCharged = kpiSource.reduce(
+    (sum, w) => sum + (w.cost_charged || 0),
     0
   );
+
+  const partsCost = kpiSource.reduce(
+    (sum, w) => sum + (w.parts_cost || 0),
+    0
+  );
+
 
   return (
     <ManagerLayout>
@@ -137,17 +185,20 @@ export default function ManagerWalkins() {
       {/* KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-4 text-sm">
         <div className="bg-white p-4 rounded shadow">
-          <p className="text-gray-500">Walk-ins Today</p>
-          <p className="text-2xl font-bold">{totalToday}</p>
+          <p className="text-gray-500">
+            Walk-ins {fromDate || toDate ? "Selected Period" : "Today"}</p>
+          <p className="text-2xl font-bold">{walkinsCount}</p>
         </div>
         <div className="bg-white p-4 rounded shadow">
-          <p className="text-gray-500">Cost Charged Today</p>
-          <p className="text-2xl font-bold">₹{totalCostToday}</p>
+          <p className="text-gray-500">
+            Cost Charged {fromDate || toDate ? "Selected Period" : "Today"}</p>
+          <p className="text-2xl font-bold">₹{costCharged.toFixed(0)}</p>
         </div>
         <div className="bg-white p-4 rounded shadow">
-          <p className="text-gray-500">Avg Cost</p>
+          <p className="text-gray-500">
+            Parts Cost {fromDate || toDate ? "Selected Period" : "Today"}</p>
           <p className="text-2xl font-bold">
-            ₹{totalToday ? (totalCostToday / totalToday).toFixed(0) : 0}
+            ₹{partsCost.toFixed(0)}
           </p>
         </div>
       </div>
@@ -201,7 +252,7 @@ export default function ManagerWalkins() {
               <th className="p-2 border">Bike</th>
               <th className="p-2 border">Model</th>
               <th className="p-2 border">Engineer</th>
-              <th className="p-2 border">Issue</th>
+              <th className="p-2 border">Parts Used</th>
               <th className="p-2 border">Parts Cost</th>
               <th className="p-2 border">Charged</th>
               <th className="p-2 border">Logged At</th>
@@ -214,7 +265,11 @@ export default function ManagerWalkins() {
                 <td className="p-2 border">{w.bike_number_text}</td>
                 <td className="p-2 border">{models[w.model_id] || "-"}</td>
                 <td className="p-2 border">{engineers[w.engineer_id]}</td>
-                <td className="p-2 border">{w.issue_description}</td>
+                <td className="p-2 border">
+                  {w.parts_used.length > 0
+                    ? w.parts_used.join(", ")
+                    : "-"}
+                </td>
                 <td className="p-2 border">₹{w.parts_cost}</td>
                 <td className="p-2 border">₹{w.cost_charged}</td>
                 <td className="p-2 border">

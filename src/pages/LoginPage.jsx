@@ -7,7 +7,7 @@ export default function LoginPage() {
     <div className="flex min-h-screen items-center justify-center bg-gray-100">
       <div className="bg-white p-8 rounded-2xl shadow-md w-full max-w-md">
         <h1 className="text-2xl font-bold text-center mb-4 text-blue-600">
-          Station Login
+          UC Login
         </h1>
         <Auth
           supabaseClient={supabase}
