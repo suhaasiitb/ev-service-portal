@@ -1,11 +1,16 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { supabase } from "../lib/supabaseClient";
 
 export default function TicketForm() {
   const [bikeNumber, setBikeNumber] = useState("");
+  const [validBikes, setValidBikes] = useState([]);
+  const [bikeSet, setBikeSet] = useState(new Set());
+
   const [issue, setIssue] = useState("");
   const [location, setLocation] = useState("");
   const [contact, setContact] = useState("");
   const [image, setImage] = useState(null);
+
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
 
@@ -14,14 +19,51 @@ export default function TicketForm() {
     "Throttle / Motor symbol",
   ];
 
+  // 🔹 Load valid bikes once
+  useEffect(() => {
+    async function loadBikes() {
+      const { data, error } = await supabase
+        .from("bikes")
+        .select("bike_number");
+
+      if (error) {
+        console.error("Failed to load bikes", error);
+        return;
+      }
+
+      const bikes = (data || []).map(b =>
+        b.bike_number.trim().toUpperCase()
+      );
+
+      setValidBikes(bikes);
+      setBikeSet(new Set(bikes));
+    }
+
+    loadBikes();
+  }, []);
+
   async function handleSubmit(e) {
     e.preventDefault();
-    setLoading(true);
     setMessage("");
+
+    const normalizedBike = bikeNumber.trim().toUpperCase();
+
+    // ❌ STRICT VALIDATION
+    if (!bikeSet.has(normalizedBike)) {
+      setMessage("❌ Bike number not registered. Please select a valid bike.");
+      return;
+    }
+
+    if (!issue.trim()) {
+      setMessage("❌ Issue description is required");
+      return;
+    }
+
+    setLoading(true);
 
     try {
       const formData = new FormData();
-      formData.append("bike_number_text", bikeNumber.trim());
+      formData.append("bike_number_text", normalizedBike);
       formData.append("issue_description", issue.trim());
       formData.append("location", location.trim());
       formData.append("contact", contact.trim());
@@ -64,14 +106,22 @@ export default function TicketForm() {
       </h2>
 
       <form onSubmit={handleSubmit} className="space-y-4">
+        {/* Bike Number */}
         <input
           type="text"
+          list="bike-list"
           placeholder="Bike Number"
           value={bikeNumber}
           onChange={(e) => setBikeNumber(e.target.value)}
           required
           className="w-full border p-2 rounded-lg"
         />
+
+        <datalist id="bike-list">
+          {validBikes.map((b) => (
+            <option key={b} value={b} />
+          ))}
+        </datalist>
 
         {/* Quick Issue Buttons */}
         <div>
