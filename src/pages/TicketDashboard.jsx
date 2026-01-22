@@ -25,6 +25,8 @@ export default function TicketDashboard({ session , stationName }) {
   const [parts, setParts] = useState([]);
   const {engineers} = useEngineers([]);
 
+  const [stationId, setStationId] = useState(null);
+
   
   const [message, setMessage] = useState("");
 
@@ -64,6 +66,25 @@ export default function TicketDashboard({ session , stationName }) {
     { part_id: "", quantity: 1 },
   ]);
   const [walkInEngineer, setWalkInEngineer] = useState("");
+
+
+  useEffect(() => {
+    async function resolveStation() {
+      if (!session?.user?.id) return;
+
+      const { data, error } = await supabase
+        .from("users")
+        .select("station_id")
+        .eq("id", session.user.id)
+        .maybeSingle();
+
+      if (!error && data?.station_id) {
+        setStationId(data.station_id);
+      }
+    }
+
+    resolveStation();
+  }, [session]);
 
 
 
@@ -567,7 +588,7 @@ export default function TicketDashboard({ session , stationName }) {
           open={showWalkInModal}
           onClose={() => setShowWalkInModal(false)}
 
-          stationId={walkinStationid}
+          stationId={stationId}
           
           walkInBike={walkInBike}
           setWalkInBike={setWalkInBike}

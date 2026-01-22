@@ -49,13 +49,7 @@ export default function WalkInModal({
         <input
           className="border border-slate-700 bg-slate-950/60 text-slate-100 text-sm rounded-xl w-full mb-4 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
           value={walkInBike}
-          onChange={async (e) => {
-            const val = e.target.value;
-            setWalkInBike(val);
-
-            const station = await resolveWalkInStation(val);
-            serWalkInStationId(stationID);
-          }}
+          onChange={(e) => setWalkInBike(e.target.value)}
         />
 
         {/* Issue */}
