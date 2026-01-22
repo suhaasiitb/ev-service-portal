@@ -1,3 +1,5 @@
+import SearchablePartSelect from "../common/SearchablePartSelect";
+
 export default function CloseTicketModal({
   open,
   onClose,
@@ -76,20 +78,14 @@ export default function CloseTicketModal({
         {/* Parts */}
         {partsUsed.map((row, index) => (
           <div key={index} className="flex gap-2 mb-3">
-            <select
-              className="border border-slate-700 bg-slate-950/60 text-slate-100 text-sm rounded-xl flex-1 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            <SearchablePartSelect
+              parts={parts}
               value={row.part_id}
-              onChange={(e) =>
-                updatePartRow(index, "part_id", e.target.value)
-              }
-            >
-              <option value="">Select part</option>
-              {parts.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.part_name} ({p.sku})
-                </option>
-              ))}
-            </select>
+              onChange={(partId) => 
+                updatePartRow(index, "part_id", partId)
+             }
+             placeholder="Search Part"
+            /> 
 
             <input
               type="number"

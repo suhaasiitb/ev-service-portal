@@ -1,3 +1,5 @@
+import SearchablePartSelect from "../common/SearchablePartSelect";
+
 export default function WalkInModal({
   open,
   onClose,
@@ -98,20 +100,14 @@ export default function WalkInModal({
         {/* Parts */}
         {walkInParts.map((row, index) => (
           <div key={index} className="flex gap-2 mb-3">
-            <select
-              className="border border-slate-700 bg-slate-950/60 text-slate-100 text-sm rounded-xl flex-1 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            <SearchablePartSelect
+              parts={parts}
               value={row.part_id}
-              onChange={(e) =>
-                updateWalkInPartRow(index, "part_id", e.target.value)
+              onChange={(partId) =>
+                updateWalkInPartRow(index, "part_id", partId)
               }
-            >
-              <option value="">Select part</option>
-              {parts.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.part_name} ({p.sku})
-                </option>
-              ))}
-            </select>
+              placeholder="Search Part"
+            />
 
             <input
               type="number"
