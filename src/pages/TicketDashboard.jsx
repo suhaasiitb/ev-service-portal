@@ -15,19 +15,19 @@ import { useDashboardMetrics } from "../hooks/useDashboardMetrics";
 const TICKET_PAGE_SIZE = 15;
 const WALKIN_PAGE_SIZE = 15;
 
-export default function TicketDashboard({ session , stationName }) {
-  
-  const { tickets, loading, error ,refetchTickets } = useTickets();
-  const {walkins, refetchWalkins} = useWalkins();
+export default function TicketDashboard({ session, stationName }) {
 
-  const {walkInMetrics, ticketMetrics} = useDashboardMetrics(tickets, walkins);
+  const { tickets, loading, error, refetchTickets } = useTickets();
+  const { walkins, refetchWalkins } = useWalkins();
+
+  const { walkInMetrics, ticketMetrics } = useDashboardMetrics(tickets, walkins);
 
   const [parts, setParts] = useState([]);
-  const {engineers} = useEngineers([]);
+  const { engineers } = useEngineers([]);
 
   const [stationId, setStationId] = useState(null);
 
-  
+
   const [message, setMessage] = useState("");
 
   const [walkinStationid, setWalkinStationid] = useState(null);
@@ -448,40 +448,38 @@ export default function TicketDashboard({ session , stationName }) {
             <p className="text-sm text-slate-400 mt-1">
               Monitor tickets, walk-ins and engineer performance.
             </p>
-        </div>
+          </div>
 
-        <div className="flex gap-3">
-          <button
-            onClick={() => {
-              setWalkInBike("");
-              setWalkInIssue("");
-              setWalkInCost(0);
-              setWalkInParts([{ part_id: "", quantity: 1 }]);
-              setWalkInEngineer("");
-              setShowWalkInModal(true);
-              setWalkinStationid(null);
-              setShowWalkInModal(true);
+          <div className="flex gap-3">
+            <button
+              onClick={() => {
+                setWalkInBike("");
+                setWalkInIssue("");
+                setWalkInCost(0);
+                setWalkInParts([{ part_id: "", quantity: 1 }]);
+                setWalkInEngineer("");
+                setShowWalkInModal(true);
+                setWalkinStationid(null);
 
-              if (tickets.length > 0) {
+                // Fetch all parts for walk-in modal
                 fetchCompatibleParts({ bike_number_text: "" });
-              }
-            }}
-            className="inline-flex items-center gap-2 rounded-full bg-blue-600 px-5 py-2.5 text-sm font-medium text-white shadow-lg shadow-blue-500/30 hover:bg-blue-500 transition"
-          >
-            <span className="text-lg">＋</span>
-            <span>New Walk-In Job</span>
-          </button>
+              }}
+              className="inline-flex items-center gap-2 rounded-full bg-blue-600 px-5 py-2.5 text-sm font-medium text-white shadow-lg shadow-blue-500/30 hover:bg-blue-500 transition"
+            >
+              <span className="text-lg">＋</span>
+              <span>New Walk-In Job</span>
+            </button>
 
-          <button
-            onClick={async () => {
-              await supabase.auth.signOut();
-            }}
-            className="inline-flex items-center rounded-full border border-slate-600 px-4 py-2.5 text-sm text-slate-200 hover:bg-slate-800 transition"
-          >
-            Logout
-          </button>
+            <button
+              onClick={async () => {
+                await supabase.auth.signOut();
+              }}
+              className="inline-flex items-center rounded-full border border-slate-600 px-4 py-2.5 text-sm text-slate-200 hover:bg-slate-800 transition"
+            >
+              Logout
+            </button>
+          </div>
         </div>
-      </div>
 
         {/* MESSAGE / ALERT */}
         {message && (
@@ -512,21 +510,19 @@ export default function TicketDashboard({ session , stationName }) {
             <div className="bg-slate-900/70 border border-slate-800 rounded-2xl p-2 flex md:flex-col gap-2">
               <button
                 onClick={() => setActiveTab("tickets")}
-                className={`flex-1 md:w-full text-sm px-3 py-2 rounded-xl text-left transition ${
-                  activeTab === "tickets"
+                className={`flex-1 md:w-full text-sm px-3 py-2 rounded-xl text-left transition ${activeTab === "tickets"
                     ? "bg-blue-600 text-white shadow-md shadow-blue-500/30"
                     : "bg-slate-950/50 text-slate-300 hover:bg-slate-900"
-                }`}
+                  }`}
               >
                 Tickets
               </button>
               <button
                 onClick={() => setActiveTab("walkins")}
-                className={`flex-1 md:w-full text-sm px-3 py-2 rounded-xl text-left transition ${
-                  activeTab === "walkins"
+                className={`flex-1 md:w-full text-sm px-3 py-2 rounded-xl text-left transition ${activeTab === "walkins"
                     ? "bg-blue-600 text-white shadow-md shadow-blue-500/30"
                     : "bg-slate-950/50 text-slate-300 hover:bg-slate-900"
-                }`}
+                  }`}
               >
                 Walk-In Services
               </button>
@@ -549,7 +545,7 @@ export default function TicketDashboard({ session , stationName }) {
                 setOpenFirst={setOpenFirst}
                 openModalForTicket={openModalForTicket}
                 formatTat={formatTat}
-              />  
+              />
             ) : (
               <WalkinsTable
                 walkins={filteredWalkins}
@@ -574,7 +570,7 @@ export default function TicketDashboard({ session , stationName }) {
 
           partsUsed={partsUsed}
           setPartsUsed={setPartsUsed}
-          
+
           selectedEngineer={selectedEngineer}
           setSelectedEngineer={setSelectedEngineer}
 
@@ -589,16 +585,16 @@ export default function TicketDashboard({ session , stationName }) {
           onClose={() => setShowWalkInModal(false)}
 
           stationId={stationId}
-          
+
           walkInBike={walkInBike}
           setWalkInBike={setWalkInBike}
-          
+
           walkInIssue={walkInIssue}
           setWalkInIssue={setWalkInIssue}
 
           walkInCost={WalkInCost}
           setWalkInCost={setWalkInCost}
-          
+
           walkInEngineer={walkInEngineer}
           setWalkInEngineer={setWalkInEngineer}
 
@@ -606,7 +602,7 @@ export default function TicketDashboard({ session , stationName }) {
           addWalkInPartRow={addWalkInPartRow}
           removeWalkInPartRow={removeWalkInPartRow}
           updateWalkInPartRow={updateWalkInPartRow}
-          
+
           engineers={engineers}
           parts={parts}
 
