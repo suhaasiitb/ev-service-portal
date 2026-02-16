@@ -238,15 +238,21 @@ export default function TicketDashboard({ session, stationName }) {
     }
   }
 
+  const [isSubmittingWalkIn, setIsSubmittingWalkIn] = useState(false);
+
   // -------------------------
   // Submit Walk-In Job
   // -------------------------
   async function handleSubmitWalkIn() {
+    if (isSubmittingWalkIn) return;
+
     try {
+      setIsSubmittingWalkIn(true);
       setMessage("");
 
-      if (!walkInBike || !WalkInCost || !walkInEngineer || !walkInIssue) {
-        setMessage("❌ Please fill all required fields.");
+      if (!walkInBike || !walkInEngineer) {
+        setMessage("❌ Please provide Bike Number and Engineer.");
+        setIsSubmittingWalkIn(false);
         return;
       }
 
@@ -264,19 +270,19 @@ export default function TicketDashboard({ session, stationName }) {
         console.error("Bike lookup error:", bikeErr);
       }
 
-      if (bike) {
-        bike_id = bike.id;
-        station_id = bike.station_id;
-        model_id = bike.model_id;
-      } else {
-        const eng = engineers.find((e) => e.id === walkInEngineer);
-        if (eng && eng.station_id) {
-          station_id = eng.station_id;
-        }
+      if (!bike) {
+        setMessage("❌ Bike number not found in the system.");
+        setIsSubmittingWalkIn(false);
+        return;
       }
 
+      bike_id = bike.id;
+      station_id = bike.station_id;
+      model_id = bike.model_id;
+
       if (!station_id) {
-        setMessage("❌ Could not determine station for this walk-in.");
+        setMessage("❌ Could not determine station for this bike.");
+        setIsSubmittingWalkIn(false);
         return;
       }
 
@@ -322,12 +328,22 @@ export default function TicketDashboard({ session, stationName }) {
         }
       }
 
-      setMessage("✅ Walk-In job logged");
-      setShowWalkInModal(false);
-      refetchWalkins();
+      setMessage("✅ Walk-In job logged successfully!");
+
+      // Animation & Interaction Feedback:
+      // We wait a moment so the user sees the success message before closing
+      setTimeout(() => {
+        setIsSubmittingWalkIn(false);
+        setShowWalkInModal(false);
+        refetchWalkins();
+        // Clear success message after 3 seconds
+        setTimeout(() => setMessage(""), 3000);
+      }, 1500);
+
     } catch (err) {
       console.error("Walk-In flow error:", err);
       setMessage("❌ Failed: " + (err.message || "Unknown error"));
+      setIsSubmittingWalkIn(false);
     }
   }
 
@@ -511,8 +527,8 @@ export default function TicketDashboard({ session, stationName }) {
               <button
                 onClick={() => setActiveTab("tickets")}
                 className={`flex-1 md:w-full text-sm px-3 py-2 rounded-xl text-left transition ${activeTab === "tickets"
-                    ? "bg-blue-600 text-white shadow-md shadow-blue-500/30"
-                    : "bg-slate-950/50 text-slate-300 hover:bg-slate-900"
+                  ? "bg-blue-600 text-white shadow-md shadow-blue-500/30"
+                  : "bg-slate-950/50 text-slate-300 hover:bg-slate-900"
                   }`}
               >
                 Tickets
@@ -520,8 +536,8 @@ export default function TicketDashboard({ session, stationName }) {
               <button
                 onClick={() => setActiveTab("walkins")}
                 className={`flex-1 md:w-full text-sm px-3 py-2 rounded-xl text-left transition ${activeTab === "walkins"
-                    ? "bg-blue-600 text-white shadow-md shadow-blue-500/30"
-                    : "bg-slate-950/50 text-slate-300 hover:bg-slate-900"
+                  ? "bg-blue-600 text-white shadow-md shadow-blue-500/30"
+                  : "bg-slate-950/50 text-slate-300 hover:bg-slate-900"
                   }`}
               >
                 Walk-In Services
@@ -583,6 +599,7 @@ export default function TicketDashboard({ session, stationName }) {
         <WalkInModal
           open={showWalkInModal}
           onClose={() => setShowWalkInModal(false)}
+          submissionMessage={message}
 
           stationId={stationId}
 
@@ -607,6 +624,7 @@ export default function TicketDashboard({ session, stationName }) {
           parts={parts}
 
           onSubmit={handleSubmitWalkIn}
+          isSubmitting={isSubmittingWalkIn}
         />
 
       </div>

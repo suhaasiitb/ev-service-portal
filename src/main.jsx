@@ -5,6 +5,7 @@ import LoginPage from "./pages/LoginPage.jsx";
 import TicketPage from "./pages/TicketPage.jsx";
 import DashboardWrapper from "./pages/DashboardWrapper.jsx";
 import ManagerWrapper from "./pages/ManagerWrapper.jsx";
+import RiderManagementWrapper from "./pages/RiderManagementWrapper.jsx";
 import { supabase } from "./lib/supabaseClient";
 import "./index.css";
 
@@ -40,16 +41,17 @@ function AuthWatcher({ children }) {
 }
 
 ReactDOM.createRoot(document.getElementById("root")).render(
-    <BrowserRouter basename="/ev-service-portal">
-      <AuthWatcher>
-        <Routes>
-          <Route path="/" element={<LoginPage />} />
-          <Route path="/ticket" element={<TicketPage />} />
-          <Route path="/dashboard" element={<DashboardWrapper />} />
-          <Route path="/manager" element={<ManagerWrapper />} />
-          <Route path="/manager/tickets" element={<ManagerWrapper />} />
-          <Route path="/manager/walkins" element={<ManagerWrapper />} />
-        </Routes>
-      </AuthWatcher>
-    </BrowserRouter>
+  <BrowserRouter basename="/ev-service-portal">
+    <AuthWatcher>
+      <Routes>
+        <Route path="/" element={<LoginPage />} />
+        <Route path="/ticket" element={<TicketPage />} />
+        <Route path="/dashboard" element={<DashboardWrapper />} />
+        <Route path="/manager" element={<ManagerWrapper />} />
+        <Route path="/manager/tickets" element={<ManagerWrapper />} />
+        <Route path="/manager/walkins" element={<ManagerWrapper />} />
+        <Route path="/rider-dashboard/*" element={<RiderManagementWrapper />} />
+      </Routes>
+    </AuthWatcher>
+  </BrowserRouter>
 );

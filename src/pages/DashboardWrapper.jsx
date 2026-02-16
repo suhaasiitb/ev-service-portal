@@ -33,6 +33,13 @@ export default function DashboardWrapper() {
         return;
       }
 
+      // Route super_admin to Rider & Vehicle Management Dashboard
+      if (profile.role === "super_admin") {
+        navigate("/rider-dashboard");
+        return;
+      }
+
+      // Route manager to Manager Dashboard
       if (profile.role === "manager") {
         navigate("/manager");
         return;
