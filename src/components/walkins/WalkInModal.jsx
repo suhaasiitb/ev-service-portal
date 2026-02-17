@@ -39,7 +39,7 @@ export default function WalkInModal({
 
   return (
     <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm flex justify-center items-center z-[100]">
-      <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-lg shadow-2xl shadow-slate-950/80 p-6 transform transition-all animate-in fade-in zoom-in duration-300">
+      <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-lg shadow-2xl shadow-slate-950/80 p-6 transform transition-all animate-in fade-in zoom-in duration-300 max-h-[90vh] overflow-y-auto">
         <h2 className="text-xl font-semibold mb-4 text-slate-100 flex items-center gap-2">
           New Walk-In Job
           {isSubmitting && (
