@@ -63,6 +63,22 @@ export default function VehicleManagementPage({ session }) {
         setShowAssignModal(true);
     }
 
+    async function handleLogout() {
+        try {
+            // Non-blocking logout ensures UI responds immediately
+            supabase.auth.signOut();
+        } catch (err) {
+            console.error("Logout error:", err);
+        } finally {
+            // Fallback for immediate redirection
+            setTimeout(() => {
+                if (window.location.pathname.includes("rider-dashboard")) {
+                    window.location.href = "/ev-service-portal/";
+                }
+            }, 500);
+        }
+    }
+
     return (
         <div className="flex min-h-screen bg-gray-50">
             <RiderSidebar />
@@ -84,8 +100,8 @@ export default function VehicleManagementPage({ session }) {
                             Welcome, {session?.user?.email}
                         </span>
                         <button
-                            onClick={() => supabase.auth.signOut()}
-                            className="px-4 py-2 text-sm text-gray-700 hover:text-gray-900"
+                            onClick={handleLogout}
+                            className="px-4 py-2 text-sm text-gray-700 hover:text-gray-900 border border-gray-200 rounded-xl hover:bg-gray-100 transition-all font-bold"
                         >
                             🚪 Sign Out
                         </button>

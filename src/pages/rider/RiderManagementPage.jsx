@@ -230,6 +230,9 @@ export default function RiderManagementPage({ session }) {
                     }}
                     onSuccess={refetchRiders}
                     assignmentId={selectedRider?.assignment_id}
+                    bikeId={selectedRider?.bike_id}
+                    stationId={selectedRider?.station_id}
+                    session={session}
                 />
 
                 <EditAssignmentModal

@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "../../lib/supabaseClient";
 
-export default function UnassignVehicleModal({ open, onClose, onSuccess, assignmentId }) {
+export default function UnassignVehicleModal({ open, onClose, onSuccess, assignmentId, bikeId, stationId, session }) {
     const [formData, setFormData] = useState({
         unassigned_at: new Date().toISOString().split("T")[0],
         unassign_reason: "Rental not affordable",
@@ -13,6 +13,74 @@ export default function UnassignVehicleModal({ open, onClose, onSuccess, assignm
     const [submitting, setSubmitting] = useState(false);
     const [message, setMessage] = useState("");
 
+    // PDI state
+    const [pdiStatus, setPdiStatus] = useState(null); // null | 'sending' | 'sent' | 'completed'
+    const [pdiError, setPdiError] = useState("");
+
+    // Check for existing PDI request on open
+    useEffect(() => {
+        if (!open || !assignmentId) return;
+        checkExistingPdi();
+    }, [open, assignmentId]);
+
+    async function checkExistingPdi() {
+        // 1. Fetch assignment details (damage, condition)
+        const { data: assignment, error: assignErr } = await supabase
+            .from("rider_bike_assignments")
+            .select("damage_amount, vehicle_condition")
+            .eq("id", assignmentId)
+            .maybeSingle();
+
+        if (!assignErr && assignment) {
+            setFormData(prev => ({
+                ...prev,
+                damage_amount: assignment.damage_amount || "",
+                vehicle_condition: assignment.vehicle_condition || "",
+            }));
+        }
+
+        // 2. Fetch PDI request status
+        const { data: pdi, error: pdiErr } = await supabase
+            .from("pdi_requests")
+            .select("id, status")
+            .eq("assignment_id", assignmentId)
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+        if (!pdiErr && pdi) {
+            setPdiStatus(pdi.status === "completed" ? "completed" : "sent");
+        } else {
+            setPdiStatus(null);
+        }
+    }
+
+    async function handleRaisePdi() {
+        if (!assignmentId || !bikeId || !stationId) {
+            setPdiError("Missing assignment, bike, or station info.");
+            return;
+        }
+
+        setPdiStatus("sending");
+        setPdiError("");
+
+        try {
+            const { error } = await supabase.from("pdi_requests").insert({
+                assignment_id: assignmentId,
+                bike_id: bikeId,
+                station_id: stationId,
+                status: "pending",
+            });
+
+            if (error) throw error;
+            setPdiStatus("sent");
+        } catch (err) {
+            console.error("Error raising PDI:", err);
+            setPdiError("Failed to raise PDI: " + err.message);
+            setPdiStatus(null);
+        }
+    }
+
     if (!open) return null;
 
     async function handleSubmit(e) {
@@ -21,7 +89,6 @@ export default function UnassignVehicleModal({ open, onClose, onSuccess, assignm
         setSubmitting(true);
 
         try {
-            // Update the assignment record with unassignment details
             const { error } = await supabase
                 .from("rider_bike_assignments")
                 .update({
@@ -30,8 +97,6 @@ export default function UnassignVehicleModal({ open, onClose, onSuccess, assignm
                     return_charger_code: formData.return_charger_code,
                     damage_amount: parseFloat(formData.damage_amount) || 0,
                     vehicle_condition: formData.vehicle_condition,
-                    // If we want to mark it as inactive or similar, we'd do it here.
-                    // For now, we'll just log these details as requested.
                 })
                 .eq("id", assignmentId);
 
@@ -59,6 +124,8 @@ export default function UnassignVehicleModal({ open, onClose, onSuccess, assignm
             vehicle_condition: "",
         });
         setMessage("");
+        setPdiStatus(null);
+        setPdiError("");
         onClose();
     }
 
@@ -71,6 +138,51 @@ export default function UnassignVehicleModal({ open, onClose, onSuccess, assignm
                 </div>
 
                 <form onSubmit={handleSubmit} className="p-6 space-y-4">
+
+                    {/* PDI Section */}
+                    <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4">
+                        <div className="flex items-center justify-between gap-3">
+                            <div className="flex-1">
+                                <p className="text-xs font-black text-amber-700 uppercase tracking-widest mb-1">
+                                    Pre-Delivery Inspection
+                                </p>
+                                <p className="text-[11px] text-amber-600">
+                                    Raise a PDI request to the assigned station before unassigning.
+                                </p>
+                            </div>
+                            <div className="flex flex-col items-end gap-1.5">
+                                {pdiStatus === null && (
+                                    <button
+                                        type="button"
+                                        onClick={handleRaisePdi}
+                                        className="px-4 py-2 rounded-xl bg-amber-500 text-white text-xs font-bold hover:bg-amber-600 shadow-md shadow-amber-500/20 transition-all"
+                                    >
+                                        📋 Raise PDI
+                                    </button>
+                                )}
+                                {pdiStatus === "sending" && (
+                                    <span className="text-xs font-bold text-amber-600 flex items-center gap-1.5">
+                                        <span className="w-3 h-3 border-2 border-amber-500 border-t-transparent rounded-full animate-spin"></span>
+                                        Sending...
+                                    </span>
+                                )}
+                                {pdiStatus === "sent" && (
+                                    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-green-50 border border-green-200 text-green-700 text-xs font-bold">
+                                        ✅ PDI Sent to Station
+                                    </span>
+                                )}
+                                {pdiStatus === "completed" && (
+                                    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-50 border border-blue-200 text-blue-700 text-xs font-bold">
+                                        ✅ PDI Completed
+                                    </span>
+                                )}
+                            </div>
+                        </div>
+                        {pdiError && (
+                            <p className="text-xs text-red-600 font-medium mt-2">{pdiError}</p>
+                        )}
+                    </div>
+
                     <div>
                         <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1.5">
                             Unassigned At *

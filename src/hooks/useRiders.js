@@ -44,11 +44,15 @@ export function useRiders() {
                     return {
                         ...rider,
                         assignment_id: assignment.id,
-                        assignment_status: "active",
+                        bike_id: assignment.bike_id,
+                        station_id: assignment.station_id,
+                        assignment_status: assignment.unassigned_at ? "idle" : "active",
                         assigned_vehicle: assignment.bikes?.bike_number || "-",
                         client_name: assignment.clients?.name || "-",
                         clientele_id: assignment.clientele_id || "-",
                         team_lead_name: assignment.team_leads?.name || "-",
+                        damage_amount: assignment.damage_amount || 0,
+                        vehicle_condition: assignment.vehicle_condition || "",
                     };
                 } else {
                     return {

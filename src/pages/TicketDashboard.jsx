@@ -6,10 +6,16 @@ import TicketsTable from "../components/tickets/TicketsTable";
 import WalkinsTable from "../components/walkins/WalkinsTable";
 import CloseTicketModal from "../components/tickets/CloseTicketModal";
 import WalkInModal from "../components/walkins/WalkInModal";
+import PdiTable from "../components/pdi/PdiTable";
+import PdiTicketModal from "../components/pdi/PdiTicketModal";
+import UnderRepairTable from "../components/repair/UnderRepairTable";
+import CloseRepairModal from "../components/repair/CloseRepairModal";
 import { useTickets } from "../hooks/useTickets";
 import { useWalkins } from "../hooks/useWalkins";
 import { useEngineers } from "../hooks/useEngineers";
 import { useDashboardMetrics } from "../hooks/useDashboardMetrics";
+import { usePdiRequests } from "../hooks/usePdiRequests";
+import { useUnderRepair } from "../hooks/useUnderRepair";
 
 
 const TICKET_PAGE_SIZE = 15;
@@ -67,7 +73,6 @@ export default function TicketDashboard({ session, stationName }) {
   ]);
   const [walkInEngineer, setWalkInEngineer] = useState("");
 
-
   useEffect(() => {
     async function resolveStation() {
       if (!session?.user?.id) return;
@@ -80,11 +85,34 @@ export default function TicketDashboard({ session, stationName }) {
 
       if (!error && data?.station_id) {
         setStationId(data.station_id);
+      } else {
+        setStationId(null);
       }
     }
 
-    resolveStation();
+    if (session) {
+      resolveStation();
+    } else {
+      setStationId(null);
+    }
   }, [session]);
+
+  async function handleLogout() {
+    try {
+      // We don't await because we want the UI to react immediately 
+      // to the auth state change handled in DashboardWrapper/main.jsx
+      supabase.auth.signOut();
+    } catch (err) {
+      console.error("Logout error:", err);
+    } finally {
+      // fallback just in case the listener doesn't trigger
+      setTimeout(() => {
+        if (window.location.pathname.includes("dashboard")) {
+          window.location.href = "/ev-service-portal/";
+        }
+      }, 1000);
+    }
+  }
 
 
 
@@ -487,9 +515,7 @@ export default function TicketDashboard({ session, stationName }) {
             </button>
 
             <button
-              onClick={async () => {
-                await supabase.auth.signOut();
-              }}
+              onClick={handleLogout}
               className="inline-flex items-center rounded-full border border-slate-600 px-4 py-2.5 text-sm text-slate-200 hover:bg-slate-800 transition"
             >
               Logout
@@ -542,6 +568,24 @@ export default function TicketDashboard({ session, stationName }) {
               >
                 Walk-In Services
               </button>
+              <button
+                onClick={() => setActiveTab("pdi")}
+                className={`flex-1 md:w-full text-sm px-3 py-2 rounded-xl text-left transition ${activeTab === "pdi"
+                  ? "bg-amber-600 text-white shadow-md shadow-amber-500/30"
+                  : "bg-slate-950/50 text-slate-300 hover:bg-slate-900"
+                  }`}
+              >
+                PDI
+              </button>
+              <button
+                onClick={() => setActiveTab("repair")}
+                className={`flex-1 md:w-full text-sm px-3 py-2 rounded-xl text-left transition ${activeTab === "repair"
+                  ? "bg-orange-600 text-white shadow-md shadow-orange-500/30"
+                  : "bg-slate-950/50 text-slate-300 hover:bg-slate-900"
+                  }`}
+              >
+                Under Repair
+              </button>
             </div>
           </div>
 
@@ -562,7 +606,7 @@ export default function TicketDashboard({ session, stationName }) {
                 openModalForTicket={openModalForTicket}
                 formatTat={formatTat}
               />
-            ) : (
+            ) : activeTab === "walkins" ? (
               <WalkinsTable
                 walkins={filteredWalkins}
                 engineers={engineers}
@@ -572,6 +616,10 @@ export default function TicketDashboard({ session, stationName }) {
                 walkinDateFilter={walkinDateFilter}
                 setWalkinDateFilter={setWalkinDateFilter}
               />
+            ) : activeTab === "pdi" ? (
+              <PdiSection stationId={stationId} engineers={engineers} />
+            ) : (
+              <RepairSection stationId={stationId} engineers={engineers} />
             )}
           </div>
         </div>
@@ -629,6 +677,72 @@ export default function TicketDashboard({ session, stationName }) {
 
       </div>
     </div>
+  );
+}
+
+// PDI Section sub-component (keeps TicketDashboard cleaner)
+function PdiSection({ stationId, engineers }) {
+  const { pdiRequests, loading, refetchPdi } = usePdiRequests(stationId);
+  const [showPdiModal, setShowPdiModal] = useState(false);
+  const [activePdi, setActivePdi] = useState(null);
+
+  function openPdiTicket(pdi) {
+    setActivePdi(pdi);
+    setShowPdiModal(true);
+  }
+
+  return (
+    <>
+      <PdiTable
+        pdiRequests={pdiRequests}
+        loading={loading}
+        onOpenTicket={openPdiTicket}
+      />
+      <PdiTicketModal
+        open={showPdiModal}
+        onClose={() => { setShowPdiModal(false); setActivePdi(null); }}
+        pdiRequest={activePdi}
+        engineers={engineers}
+        onSuccess={() => {
+          refetchPdi();
+          setShowPdiModal(false);
+          setActivePdi(null);
+        }}
+      />
+    </>
+  );
+}
+
+// Under Repair Section sub-component
+function RepairSection({ stationId, engineers }) {
+  const { repairTickets, loading, refetchRepair } = useUnderRepair(stationId);
+  const [showRepairModal, setShowRepairModal] = useState(false);
+  const [activeRepair, setActiveRepair] = useState(null);
+
+  function openRepairTicket(ticket) {
+    setActiveRepair(ticket);
+    setShowRepairModal(true);
+  }
+
+  return (
+    <>
+      <UnderRepairTable
+        repairTickets={repairTickets}
+        loading={loading}
+        onOpenTicket={openRepairTicket}
+      />
+      <CloseRepairModal
+        open={showRepairModal}
+        onClose={() => { setShowRepairModal(false); setActiveRepair(null); }}
+        repairTicket={activeRepair}
+        engineers={engineers}
+        onSuccess={() => {
+          refetchRepair();
+          setShowRepairModal(false);
+          setActiveRepair(null);
+        }}
+      />
+    </>
   );
 }
 

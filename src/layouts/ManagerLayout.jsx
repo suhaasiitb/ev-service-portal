@@ -9,8 +9,17 @@ export default function ManagerLayout({ children }) {
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
   async function handleLogout() {
-    await supabase.auth.signOut();
-    navigate("/");
+    try {
+      supabase.auth.signOut();
+    } catch (err) {
+      console.error("Logout error:", err);
+    } finally {
+      setTimeout(() => {
+        if (window.location.pathname.includes("manager")) {
+          window.location.href = "/ev-service-portal/";
+        }
+      }, 500);
+    }
   }
 
   const isInventory = location.pathname === "/manager";
@@ -20,9 +29,8 @@ export default function ManagerLayout({ children }) {
     <div className="min-h-screen bg-gray-50 flex">
       {/* Sidebar */}
       <div
-        className={`${
-          sidebarOpen ? "w-56" : "w-14"
-        } bg-slate-900 text-white flex flex-col transition-all duration-200`}
+        className={`${sidebarOpen ? "w-56" : "w-14"
+          } bg-slate-900 text-white flex flex-col transition-all duration-200`}
       >
         {/* Toggle */}
         <button
@@ -42,33 +50,30 @@ export default function ManagerLayout({ children }) {
         <nav className="flex-1 text-sm mt-1">
           <button
             onClick={() => navigate("/manager")}
-            className={`w-full flex items-center gap-2 px-4 py-2 ${
-              isInventory
+            className={`w-full flex items-center gap-2 px-4 py-2 ${isInventory
                 ? "bg-slate-800 text-white"
                 : "text-slate-400 hover:bg-slate-800"
-            }`}
+              }`}
           >
             📦 {sidebarOpen && "Inventory"}
           </button>
 
           <button
             onClick={() => navigate("/manager/tickets")}
-            className={`w-full flex items-center gap-2 px-4 py-2 ${
-              isTickets
+            className={`w-full flex items-center gap-2 px-4 py-2 ${isTickets
                 ? "bg-slate-800 text-white"
                 : "text-slate-400 hover:bg-slate-800"
-            }`}
+              }`}
           >
             🎫 {sidebarOpen && "Tickets"}
           </button>
 
           <button
-            onClick={()=> navigate("/manager/walkins")}
-            className={`w-full flex items-center gap-2 px-4 py-2 ${
-              isWalkins
+            onClick={() => navigate("/manager/walkins")}
+            className={`w-full flex items-center gap-2 px-4 py-2 ${isWalkins
                 ? "bg-slate-800 text-white"
                 : "text-slate-400 hover:bg-slate-800"
-            }`}
+              }`}
           >
             🧾 {sidebarOpen && "Walk-Ins"}
           </button>
