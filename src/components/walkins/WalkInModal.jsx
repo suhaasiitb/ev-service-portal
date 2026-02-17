@@ -1,4 +1,4 @@
-import SearchablePartSelect from "../common/SearchablePartSelect";
+import PartRowWithScan from "../common/PartRowWithScan";
 
 export default function WalkInModal({
   open,
@@ -111,35 +111,16 @@ export default function WalkInModal({
         {/* Parts */}
         <div className={isSubmitting ? 'opacity-50 pointer-events-none' : ''}>
           {walkInParts.map((row, index) => (
-            <div key={index} className="flex gap-2 mb-3">
-              <SearchablePartSelect
-                parts={parts}
-                value={row.part_id}
-                onChange={(partId) =>
-                  updateWalkInPartRow(index, "part_id", partId)
-                }
-                placeholder="Search Part"
-              />
-
-              <input
-                type="number"
-                min="1"
-                className="border border-slate-700 bg-slate-950/60 text-slate-100 text-sm rounded-xl w-20 px-2 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                value={row.quantity}
-                onChange={(e) =>
-                  updateWalkInPartRow(index, "quantity", e.target.value)
-                }
-              />
-
-              {index > 0 && (
-                <button
-                  className="text-red-400 text-lg px-2 hover:text-red-300 transition"
-                  onClick={() => removeWalkInPartRow(index)}
-                >
-                  ✕
-                </button>
-              )}
-            </div>
+            <PartRowWithScan
+              key={index}
+              parts={parts}
+              partId={row.part_id}
+              quantity={row.quantity}
+              onPartChange={(partId) => updateWalkInPartRow(index, "part_id", partId)}
+              onQtyChange={(val) => updateWalkInPartRow(index, "quantity", val)}
+              onRemove={() => removeWalkInPartRow(index)}
+              showRemove={index > 0}
+            />
           ))}
 
           <button

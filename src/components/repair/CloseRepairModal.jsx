@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "../../lib/supabaseClient";
-import SearchablePartSelect from "../common/SearchablePartSelect";
+import PartRowWithScan from "../common/PartRowWithScan";
 
 export default function CloseRepairModal({ open, onClose, repairTicket, engineers, onSuccess }) {
     const [partsUsed, setPartsUsed] = useState([{ part_id: "", quantity: 1 }]);
@@ -191,29 +191,16 @@ export default function CloseRepairModal({ open, onClose, repairTicket, engineer
                     Parts Used
                 </label>
                 {partsUsed.map((row, index) => (
-                    <div key={index} className="flex gap-2 mb-2">
-                        <SearchablePartSelect
-                            parts={parts}
-                            value={row.part_id}
-                            onChange={(partId) => updatePartRow(index, "part_id", partId)}
-                            placeholder="Search Part"
-                        />
-                        <input
-                            type="number"
-                            min="1"
-                            className="border border-slate-700 bg-slate-950/60 text-slate-100 text-sm rounded-xl w-20 px-2 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            value={row.quantity}
-                            onChange={(e) => updatePartRow(index, "quantity", e.target.value)}
-                        />
-                        {index > 0 && (
-                            <button
-                                className="text-red-400 text-lg px-2 hover:text-red-300 transition"
-                                onClick={() => removePartRow(index)}
-                            >
-                                ✕
-                            </button>
-                        )}
-                    </div>
+                    <PartRowWithScan
+                        key={index}
+                        parts={parts}
+                        partId={row.part_id}
+                        quantity={row.quantity}
+                        onPartChange={(partId) => updatePartRow(index, "part_id", partId)}
+                        onQtyChange={(val) => updatePartRow(index, "quantity", val)}
+                        onRemove={() => removePartRow(index)}
+                        showRemove={index > 0}
+                    />
                 ))}
                 <button
                     className="text-blue-400 text-sm underline mb-4 hover:text-blue-300 transition"
