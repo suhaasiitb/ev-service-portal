@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { Html5Qrcode } from "html5-qrcode";
 
 /**
@@ -9,103 +9,127 @@ import { Html5Qrcode } from "html5-qrcode";
  *   onClose   – called when user closes the modal
  *   onScan    – called with the decoded string (the SKU)
  */
+const READER_ID = "scanner-viewport";
+
 export default function ScannerModal({ open, onClose, onScan }) {
     const scannerRef = useRef(null);
+    const mountedRef = useRef(true);
     const [error, setError] = useState("");
     const [scanning, setScanning] = useState(false);
 
+    // Track mount state to avoid setState on unmounted component
+    useEffect(() => {
+        mountedRef.current = true;
+        return () => { mountedRef.current = false; };
+    }, []);
+
+    // Cleanup function — stops scanner and releases camera
+    const cleanup = useCallback(async () => {
+        const instance = scannerRef.current;
+        if (!instance) return;
+
+        try {
+            // Check if actively scanning before stopping
+            if (instance.isScanning) {
+                await instance.stop();
+            }
+        } catch {
+            // Already stopped
+        }
+
+        try {
+            instance.clear();
+        } catch {
+            // Already cleared
+        }
+
+        scannerRef.current = null;
+        if (mountedRef.current) {
+            setScanning(false);
+        }
+    }, []);
+
+    // Start scanner when modal opens
     useEffect(() => {
         if (!open) return;
 
-        let html5Qr = null;
-        const readerId = "qr-reader-" + Date.now();
+        let cancelled = false;
 
-        // Wait for the DOM element to render
-        const timer = setTimeout(async () => {
+        async function startScanner() {
+            // Give DOM time to render the viewport div
+            await new Promise((r) => setTimeout(r, 400));
+            if (cancelled || !mountedRef.current) return;
+
+            const el = document.getElementById(READER_ID);
+            if (!el) {
+                setError("Scanner viewport not found.");
+                return;
+            }
+
+            // Ensure any leftover instance is cleaned up first
+            await cleanup();
+
             try {
-                const el = document.getElementById(readerId);
-                if (!el) return;
-
-                html5Qr = new Html5Qrcode(readerId);
+                const html5Qr = new Html5Qrcode(READER_ID, /* verbose= */ false);
                 scannerRef.current = html5Qr;
-                setScanning(true);
+
+                if (cancelled) {
+                    html5Qr.clear();
+                    return;
+                }
+
                 setError("");
+                setScanning(false);
 
                 await html5Qr.start(
                     { facingMode: "environment" },
                     {
                         fps: 10,
                         qrbox: { width: 250, height: 250 },
-                        formatsToSupport: [
-                            0,  // QR_CODE
-                            11, // DATA_MATRIX
-                            4,  // CODE_128
-                            2,  // CODE_39
-                            8,  // EAN_13
-                        ],
                     },
                     (decodedText) => {
-                        // On successful scan
+                        if (cancelled) return;
+                        // Success — pass scanned SKU and close
                         onScan(decodedText.trim());
-                        stopAndClose(html5Qr);
+                        // Schedule cleanup AFTER the callback returns
+                        setTimeout(() => cleanup(), 50);
                     },
                     () => {
-                        // Ignore scan failures (no code in frame)
+                        // Ignore per-frame failures (no code visible)
                     }
                 );
-            } catch (err) {
-                console.error("Scanner init error:", err);
-                setError(
-                    typeof err === "string"
-                        ? err
-                        : err?.message || "Camera access denied or not available."
-                );
-                setScanning(false);
-            }
-        }, 300);
 
-        // Store the readerId so we can reference it in cleanup
-        scannerRef.current = { readerId };
+                if (mountedRef.current && !cancelled) {
+                    setScanning(true);
+                }
+            } catch (err) {
+                console.error("Scanner start error:", err);
+                if (mountedRef.current && !cancelled) {
+                    setError(
+                        typeof err === "string"
+                            ? err
+                            : err?.message || "Camera access denied or unavailable."
+                    );
+                    setScanning(false);
+                }
+            }
+        }
+
+        startScanner();
 
         return () => {
-            clearTimeout(timer);
-            if (html5Qr) {
-                stopScanner(html5Qr);
-            }
+            cancelled = true;
+            cleanup();
         };
-    }, [open]);
+    }, [open, cleanup, onScan]);
 
-    async function stopScanner(instance) {
-        try {
-            const state = instance.getState();
-            if (state === 2) {
-                // 2 = SCANNING
-                await instance.stop();
-            }
-            instance.clear();
-        } catch {
-            // Already stopped / cleared
-        }
-        setScanning(false);
-    }
-
-    function stopAndClose(instance) {
-        stopScanner(instance);
-        onClose();
-    }
-
+    // Manual close handler
     function handleClose() {
-        if (scannerRef.current instanceof Html5Qrcode) {
-            stopScanner(scannerRef.current);
-        }
+        cleanup();
         onClose();
     }
 
     if (!open) return null;
-
-    // Generate a consistent reader id
-    const readerId =
-        scannerRef.current?.readerId || "qr-reader-" + Date.now();
 
     return (
         <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex justify-center items-center z-[200] p-4">
@@ -129,15 +153,13 @@ export default function ScannerModal({ open, onClose, onScan }) {
                 </div>
 
                 {/* Scanner viewport */}
-                <div className="relative bg-black">
-                    <div
-                        id={readerId}
-                        style={{ width: "100%", minHeight: 280 }}
-                    />
+                <div className="relative bg-black" style={{ minHeight: 300 }}>
+                    <div id={READER_ID} style={{ width: "100%" }} />
 
                     {!scanning && !error && (
-                        <div className="absolute inset-0 flex items-center justify-center">
-                            <span className="text-slate-400 text-sm animate-pulse">
+                        <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
+                            <span className="w-8 h-8 border-3 border-emerald-400 border-t-transparent rounded-full animate-spin" />
+                            <span className="text-slate-400 text-sm">
                                 Starting camera…
                             </span>
                         </div>
@@ -148,6 +170,12 @@ export default function ScannerModal({ open, onClose, onScan }) {
                 {error && (
                     <div className="px-5 py-3 bg-red-500/10 border-t border-red-500/30 text-red-300 text-xs">
                         ⚠️ {error}
+                        <button
+                            onClick={() => { setError(""); cleanup(); /* re-trigger by toggling open externally */ }}
+                            className="ml-3 underline text-red-200 hover:text-white"
+                        >
+                            Retry
+                        </button>
                     </div>
                 )}
 
