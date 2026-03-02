@@ -220,6 +220,7 @@ export default function RiderManagementPage({ session }) {
                     }}
                     onSuccess={refetchRiders}
                     prefilledRiderId={selectedRider?.id}
+                    stations={stations}
                 />
 
                 <UnassignVehicleModal

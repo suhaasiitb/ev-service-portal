@@ -36,7 +36,17 @@ export default function AssignVehicleModal({
     const [message, setMessage] = useState("");
     const [riderInfo, setRiderInfo] = useState(null);
 
-    if (!open) return null;
+    // If prefilled, load initial data
+    useEffect(() => {
+        if (prefilledRiderId && open) {
+            loadRiderData(prefilledRiderId);
+        }
+        // Reset form when modal closes
+        if (!open) {
+            setRiderInfo(null);
+            setMessage("");
+        }
+    }, [open, prefilledRiderId]);
 
     // Resolve client from name
     async function resolveClient() {
@@ -83,22 +93,17 @@ export default function AssignVehicleModal({
         }
     }
 
-    // Resolve station from name
-    async function resolveStation() {
-        if (!formData.station_name) return;
-        try {
-            const { data } = await supabase
-                .from("stations")
-                .select("id, name")
-                .ilike("name", `%${formData.station_name.trim()}%`)
-                .maybeSingle();
+    // List of allowed stations for dropdown as requested
+    const allowedStationNames = ["Nanded Station", "Kharadi Station", "Hinjewadi Station"];
+    const filteredStations = (stations || []).filter(s => allowedStationNames.includes(s.name));
 
-            if (data) {
-                setFormData(prev => ({ ...prev, station_id: data.id, station_name: data.name }));
-            }
-        } catch (err) {
-            console.error("Error resolving station:", err);
-        }
+    function handleStationChange(stationId) {
+        const station = filteredStations.find(s => s.id === stationId);
+        setFormData(prev => ({
+            ...prev,
+            station_id: stationId,
+            station_name: station ? station.name : ""
+        }));
     }
 
     // Resolve TL from name
@@ -119,13 +124,6 @@ export default function AssignVehicleModal({
         }
     }
 
-    // If prefilled, load initial data
-    useEffect(() => {
-        if (prefilledRiderId && open) {
-            loadRiderData(prefilledRiderId);
-        }
-    }, [open, prefilledRiderId]);
-
     async function loadRiderData(riderId) {
         try {
             const { data } = await supabase
@@ -145,6 +143,8 @@ export default function AssignVehicleModal({
             console.error("Error loading rider:", err);
         }
     }
+
+    if (!open) return null;
 
     async function handleSubmit(e) {
         e.preventDefault();
@@ -308,16 +308,21 @@ export default function AssignVehicleModal({
                         </div>
                         <div>
                             <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1.5 ml-1">
-                                Station Name
+                                Station Name *
                             </label>
-                            <input
-                                type="text"
-                                value={formData.station_name}
-                                onChange={(e) => setFormData({ ...formData, station_name: e.target.value })}
-                                onBlur={resolveStation}
-                                placeholder="Search Station"
+                            <select
+                                value={formData.station_id}
+                                onChange={(e) => handleStationChange(e.target.value)}
                                 className={`w-full border rounded-2xl px-4 py-2.5 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all text-sm font-medium ${formData.station_id ? 'border-green-200 bg-green-50/30' : 'border-gray-200'}`}
-                            />
+                                required
+                            >
+                                <option value="">Select Station</option>
+                                {filteredStations.map((s) => (
+                                    <option key={s.id} value={s.id}>
+                                        {s.name}
+                                    </option>
+                                ))}
+                            </select>
                         </div>
                     </div>
 
