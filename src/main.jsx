@@ -1,6 +1,6 @@
 import React, { useEffect } from "react";
 import ReactDOM from "react-dom/client";
-import { BrowserRouter, Routes, Route, useNavigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, useNavigate, useLocation } from "react-router-dom";
 import LoginPage from "./pages/LoginPage.jsx";
 import TicketPage from "./pages/TicketPage.jsx";
 import DashboardWrapper from "./pages/DashboardWrapper.jsx";
@@ -16,6 +16,7 @@ console.log("ENV CHECK:", {
 
 function AuthWatcher({ children }) {
   const navigate = useNavigate();
+  const location = useLocation();
 
   useEffect(() => {
     const { data: listener } = supabase.auth.onAuthStateChange(
@@ -23,9 +24,11 @@ function AuthWatcher({ children }) {
         console.log("Auth event:", event, session);
 
         if (event === "SIGNED_IN") {
-          // Always go to /dashboard first,
-          // DashboardWrapper will redirect managers to /manager.
-          navigate("/dashboard");
+          // Only redirect if we are at the login page (root path)
+          // This prevents resets when token refreshes while on sub-pages
+          if (location.pathname === "/") {
+            navigate("/dashboard");
+          }
         }
 
         if (event === "SIGNED_OUT") {

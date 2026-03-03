@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "../../lib/supabaseClient";
 
-export default function EditAssignmentModal({ open, onClose, onSuccess, assignmentId }) {
+export default function EditAssignmentModal({ open, onClose, onSuccess, assignmentId, stations }) {
     const [formData, setFormData] = useState({
         client_name: "",
         client_id: "",
@@ -90,10 +90,17 @@ export default function EditAssignmentModal({ open, onClose, onSuccess, assignme
         if (data) setFormData(prev => ({ ...prev, bike_id: data.id }));
     }
 
-    async function resolveStation() {
-        if (!formData.station_name) return;
-        const { data } = await supabase.from("stations").select("id, name").ilike("name", `%${formData.station_name.trim()}%`).maybeSingle();
-        if (data) setFormData(prev => ({ ...prev, station_id: data.id, station_name: data.name }));
+    // List of allowed stations for dropdown as requested
+    const allowedStationNames = ["Nanded Station", "Kharadi Station", "Hinjewadi Station"];
+    const filteredStations = (stations || []).filter(s => allowedStationNames.includes(s.name));
+
+    function handleStationChange(stationId) {
+        const station = filteredStations.find(s => s.id === stationId);
+        setFormData(prev => ({
+            ...prev,
+            station_id: stationId,
+            station_name: station ? station.name : ""
+        }));
     }
 
     async function resolveTL() {
@@ -189,8 +196,20 @@ export default function EditAssignmentModal({ open, onClose, onSuccess, assignme
                                 <input type="text" value={formData.bike_number} onChange={(e) => setFormData({ ...formData, bike_number: e.target.value })} onBlur={resolveBike} className="w-full border-2 border-gray-100 rounded-2xl px-5 py-3 bg-gray-50 focus:border-blue-500 focus:bg-white transition-all outline-none font-bold" required />
                             </div>
                             <div>
-                                <label className="block text-[11px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Station</label>
-                                <input type="text" value={formData.station_name} onChange={(e) => setFormData({ ...formData, station_name: e.target.value })} onBlur={resolveStation} className="w-full border-2 border-gray-100 rounded-2xl px-5 py-3 bg-gray-50 focus:border-blue-500 focus:bg-white transition-all outline-none" />
+                                <label className="block text-[11px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Station *</label>
+                                <select
+                                    value={formData.station_id}
+                                    onChange={(e) => handleStationChange(e.target.value)}
+                                    className="w-full border-2 border-gray-100 rounded-2xl px-5 py-3 bg-gray-50 focus:border-blue-500 focus:bg-white transition-all outline-none"
+                                    required
+                                >
+                                    <option value="">Select Station</option>
+                                    {filteredStations.map((s) => (
+                                        <option key={s.id} value={s.id}>
+                                            {s.name}
+                                        </option>
+                                    ))}
+                                </select>
                             </div>
                         </div>
 

@@ -244,6 +244,7 @@ export default function RiderManagementPage({ session }) {
                     }}
                     onSuccess={refetchRiders}
                     assignmentId={selectedRider?.assignment_id}
+                    stations={stations}
                 />
             </div>
         </div>
