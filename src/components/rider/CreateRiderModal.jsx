@@ -9,7 +9,7 @@ export default function CreateRiderModal({ open, onClose, onSuccess, stations })
         aadhar_no: "",
         bank_account_no: "",
         ifsc_code: "",
-        station_id: "",
+        ifsc_code: "",
     });
 
     const [aadharError, setAadharError] = useState("");
@@ -64,7 +64,6 @@ export default function CreateRiderModal({ open, onClose, onSuccess, stations })
                 aadhar_no: formData.aadhar_no,
                 bank_account_no: formData.bank_account_no,
                 ifsc_code: formData.ifsc_code,
-                station_id: formData.station_id,
             });
 
             if (error) throw error;
@@ -89,7 +88,7 @@ export default function CreateRiderModal({ open, onClose, onSuccess, stations })
             aadhar_no: "",
             bank_account_no: "",
             ifsc_code: "",
-            station_id: "",
+            ifsc_code: "",
         });
         setAadharError("");
         setMessage("");
@@ -237,26 +236,7 @@ export default function CreateRiderModal({ open, onClose, onSuccess, stations })
                                 </div>
                             </div>
 
-                            <div>
-                                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
-                                    Station *
-                                </label>
-                                <select
-                                    value={formData.station_id}
-                                    onChange={(e) =>
-                                        setFormData({ ...formData, station_id: e.target.value })
-                                    }
-                                    className="w-full border border-gray-300 rounded-xl px-4 py-2.5 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
-                                    required
-                                >
-                                    <option value="">Select Station</option>
-                                    {stations.map((station) => (
-                                        <option key={station.id} value={station.id}>
-                                            {station.name}
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
+
                         </div>
 
                         {message && (
