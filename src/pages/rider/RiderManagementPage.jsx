@@ -42,6 +42,7 @@ export default function RiderManagementPage({ session }) {
         return (
             rider.name?.toLowerCase().includes(search) ||
             rider.phone?.includes(search) ||
+            rider.aadhar_no?.includes(search) ||
             rider.clientele_id?.toLowerCase().includes(search)
         );
     });
@@ -89,7 +90,7 @@ export default function RiderManagementPage({ session }) {
                     <div className="relative flex-1 max-w-md">
                         <input
                             type="text"
-                            placeholder="Search by name, phone or ID..."
+                            placeholder="Search by name, phone, aadhar or ID..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                             className="w-full pl-12 pr-4 py-3.5 bg-white border border-gray-200 rounded-2xl focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all shadow-sm"
