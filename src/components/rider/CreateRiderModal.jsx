@@ -9,7 +9,6 @@ export default function CreateRiderModal({ open, onClose, onSuccess, stations })
         aadhar_no: "",
         bank_account_no: "",
         ifsc_code: "",
-        ifsc_code: "",
     });
 
     const [aadharError, setAadharError] = useState("");
@@ -87,7 +86,6 @@ export default function CreateRiderModal({ open, onClose, onSuccess, stations })
             phone: "",
             aadhar_no: "",
             bank_account_no: "",
-            ifsc_code: "",
             ifsc_code: "",
         });
         setAadharError("");

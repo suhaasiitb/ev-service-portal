@@ -48,22 +48,13 @@ export default function AssignVehicleModal({
         }
     }, [open, prefilledRiderId]);
 
-    // Resolve client from name
-    async function resolveClient() {
-        if (!formData.client_name) return;
-        try {
-            const { data } = await supabase
-                .from("clients")
-                .select("id, name")
-                .ilike("name", `%${formData.client_name.trim()}%`)
-                .maybeSingle();
-
-            if (data) {
-                setFormData(prev => ({ ...prev, client_id: data.id, client_name: data.name }));
-            }
-        } catch (err) {
-            console.error("Error resolving client:", err);
-        }
+    function handleClientChange(clientId) {
+        const client = (clients || []).find(c => c.id === clientId);
+        setFormData(prev => ({
+            ...prev,
+            client_id: clientId,
+            client_name: client ? client.name : ""
+        }));
     }
 
     // Resolve bike from number
@@ -106,22 +97,13 @@ export default function AssignVehicleModal({
         }));
     }
 
-    // Resolve TL from name
-    async function resolveTL() {
-        if (!formData.team_lead_name) return;
-        try {
-            const { data } = await supabase
-                .from("team_leads")
-                .select("id, name")
-                .ilike("name", `%${formData.team_lead_name.trim()}%`)
-                .maybeSingle();
-
-            if (data) {
-                setFormData(prev => ({ ...prev, team_lead_id: data.id, team_lead_name: data.name }));
-            }
-        } catch (err) {
-            console.error("Error resolving TL:", err);
-        }
+    function handleTLChange(tlId) {
+        const tl = (teamLeads || []).find(t => t.id === tlId);
+        setFormData(prev => ({
+            ...prev,
+            team_lead_id: tlId,
+            team_lead_name: tl ? tl.name : ""
+        }));
     }
 
     async function loadRiderData(riderId) {
@@ -266,15 +248,18 @@ export default function AssignVehicleModal({
                             <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1.5 ml-1">
                                 Client Name
                             </label>
-                            <input
-                                type="text"
-                                value={formData.client_name}
-                                onChange={(e) => setFormData({ ...formData, client_name: e.target.value })}
-                                onBlur={resolveClient}
-                                placeholder="Type Client Name"
+                            <select
+                                value={formData.client_id}
+                                onChange={(e) => handleClientChange(e.target.value)}
                                 className={`w-full border rounded-2xl px-4 py-2.5 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all text-sm font-medium ${formData.client_id ? 'border-green-200 bg-green-50/30' : 'border-gray-200'}`}
-                            />
-                            {formData.client_id && <p className="text-[10px] text-green-600 font-bold mt-1 ml-1 px-1">✅ Client Linked</p>}
+                            >
+                                <option value="">Select Client</option>
+                                {(clients || []).map((c) => (
+                                    <option key={c.id} value={c.id}>
+                                        {c.name}
+                                    </option>
+                                ))}
+                            </select>
                         </div>
                         <div>
                             <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1.5 ml-1">
@@ -332,14 +317,18 @@ export default function AssignVehicleModal({
                             <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1.5 ml-1">
                                 Team Lead
                             </label>
-                            <input
-                                type="text"
-                                value={formData.team_lead_name}
-                                onChange={(e) => setFormData({ ...formData, team_lead_name: e.target.value })}
-                                onBlur={resolveTL}
-                                placeholder="Search Team Lead"
+                            <select
+                                value={formData.team_lead_id}
+                                onChange={(e) => handleTLChange(e.target.value)}
                                 className={`w-full border rounded-2xl px-4 py-2.5 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all text-sm font-medium ${formData.team_lead_id ? 'border-green-200 bg-green-50/30' : 'border-gray-200'}`}
-                            />
+                            >
+                                <option value="">Select Team Lead</option>
+                                {(teamLeads || []).map((tl) => (
+                                    <option key={tl.id} value={tl.id}>
+                                        {tl.name}
+                                    </option>
+                                ))}
+                            </select>
                         </div>
                         <div>
                             <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1.5 ml-1">

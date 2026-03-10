@@ -13,6 +13,8 @@ import { useClients } from "../../hooks/useClients";
 
 export default function RiderManagementPage({ session }) {
     const { riders, loading, refetchRiders } = useRiders();
+    const { teamLeads } = useTeamLeads();
+    const { clients } = useClients();
 
     const [stations, setStations] = useState([]);
     const [searchTerm, setSearchTerm] = useState("");
@@ -222,6 +224,8 @@ export default function RiderManagementPage({ session }) {
                     onSuccess={refetchRiders}
                     prefilledRiderId={selectedRider?.id}
                     stations={stations}
+                    teamLeads={teamLeads}
+                    clients={clients}
                 />
 
                 <UnassignVehicleModal
@@ -246,6 +250,8 @@ export default function RiderManagementPage({ session }) {
                     onSuccess={refetchRiders}
                     assignmentId={selectedRider?.assignment_id}
                     stations={stations}
+                    teamLeads={teamLeads}
+                    clients={clients}
                 />
             </div>
         </div>

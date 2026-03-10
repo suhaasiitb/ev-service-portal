@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "../../lib/supabaseClient";
 
-export default function EditAssignmentModal({ open, onClose, onSuccess, assignmentId, stations }) {
+export default function EditAssignmentModal({ open, onClose, onSuccess, assignmentId, stations, clients, teamLeads }) {
     const [formData, setFormData] = useState({
         client_name: "",
         client_id: "",
@@ -78,10 +78,13 @@ export default function EditAssignmentModal({ open, onClose, onSuccess, assignme
         }
     }
 
-    async function resolveClient() {
-        if (!formData.client_name) return;
-        const { data } = await supabase.from("clients").select("id, name").ilike("name", `%${formData.client_name.trim()}%`).maybeSingle();
-        if (data) setFormData(prev => ({ ...prev, client_id: data.id, client_name: data.name }));
+    function handleClientChange(clientId) {
+        const client = (clients || []).find(c => c.id === clientId);
+        setFormData(prev => ({
+            ...prev,
+            client_id: clientId,
+            client_name: client ? client.name : ""
+        }));
     }
 
     async function resolveBike() {
@@ -103,10 +106,13 @@ export default function EditAssignmentModal({ open, onClose, onSuccess, assignme
         }));
     }
 
-    async function resolveTL() {
-        if (!formData.team_lead_name) return;
-        const { data } = await supabase.from("team_leads").select("id, name").ilike("name", `%${formData.team_lead_name.trim()}%`).maybeSingle();
-        if (data) setFormData(prev => ({ ...prev, team_lead_id: data.id, team_lead_name: data.name }));
+    function handleTLChange(tlId) {
+        const tl = (teamLeads || []).find(t => t.id === tlId);
+        setFormData(prev => ({
+            ...prev,
+            team_lead_id: tlId,
+            team_lead_name: tl ? tl.name : ""
+        }));
     }
 
     async function handleSubmit(e) {
@@ -182,7 +188,18 @@ export default function EditAssignmentModal({ open, onClose, onSuccess, assignme
                         <div className="grid grid-cols-2 gap-6">
                             <div>
                                 <label className="block text-[11px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Client Link</label>
-                                <input type="text" value={formData.client_name} onChange={(e) => setFormData({ ...formData, client_name: e.target.value })} onBlur={resolveClient} className="w-full border-2 border-gray-100 rounded-2xl px-5 py-3 bg-gray-50 focus:border-blue-500 focus:bg-white transition-all outline-none" />
+                                <select
+                                    value={formData.client_id}
+                                    onChange={(e) => handleClientChange(e.target.value)}
+                                    className="w-full border-2 border-gray-100 rounded-2xl px-5 py-3 bg-gray-50 focus:border-blue-500 focus:bg-white transition-all outline-none"
+                                >
+                                    <option value="">Select Client</option>
+                                    {(clients || []).map((c) => (
+                                        <option key={c.id} value={c.id}>
+                                            {c.name}
+                                        </option>
+                                    ))}
+                                </select>
                             </div>
                             <div>
                                 <label className="block text-[11px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Clientele ID</label>
@@ -216,7 +233,18 @@ export default function EditAssignmentModal({ open, onClose, onSuccess, assignme
                         <div className="grid grid-cols-2 gap-6">
                             <div>
                                 <label className="block text-[11px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Team Lead</label>
-                                <input type="text" value={formData.team_lead_name} onChange={(e) => setFormData({ ...formData, team_lead_name: e.target.value })} onBlur={resolveTL} className="w-full border-2 border-gray-100 rounded-2xl px-5 py-3 bg-gray-50 focus:border-blue-500 focus:bg-white transition-all outline-none" />
+                                <select
+                                    value={formData.team_lead_id}
+                                    onChange={(e) => handleTLChange(e.target.value)}
+                                    className="w-full border-2 border-gray-100 rounded-2xl px-5 py-3 bg-gray-50 focus:border-blue-500 focus:bg-white transition-all outline-none"
+                                >
+                                    <option value="">Select Team Lead</option>
+                                    {(teamLeads || []).map((tl) => (
+                                        <option key={tl.id} value={tl.id}>
+                                            {tl.name}
+                                        </option>
+                                    ))}
+                                </select>
                             </div>
                             <div>
                                 <label className="block text-[11px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Battery Setup</label>
