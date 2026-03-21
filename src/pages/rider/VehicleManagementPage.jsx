@@ -16,6 +16,8 @@ export default function VehicleManagementPage({ session }) {
     const [searchTerm, setSearchTerm] = useState("");
     const [showAssignModal, setShowAssignModal] = useState(false);
     const [selectedVehicle, setSelectedVehicle] = useState(null);
+    const [activeMenuId, setActiveMenuId] = useState(null);
+    const [submittingPdi, setSubmittingPdi] = useState(null); // stores bike_id being processed
 
     // Fetch stations
     useEffect(() => {
@@ -61,6 +63,41 @@ export default function VehicleManagementPage({ session }) {
     function handleAssignClick(vehicle) {
         setSelectedVehicle(vehicle);
         setShowAssignModal(true);
+    }
+
+    async function handleRaisePdi(vehicle) {
+        if (!vehicle.station_id) {
+            alert("This vehicle has no assigned station. Please assign a station first.");
+            return;
+        }
+
+        if (!confirm(`Send vehicle ${vehicle.bike_number} for PDI?`)) return;
+
+        setSubmittingPdi(vehicle.id);
+        setActiveMenuId(null);
+
+        try {
+            const { error } = await supabase.from("pdi_requests").insert({
+                bike_id: vehicle.id,
+                station_id: vehicle.station_id,
+                status: "pending",
+                // assignment_id remains null for idle vehicles
+            });
+
+            if (error) throw error;
+
+            alert("✅ PDI request raised successfully!");
+            refetchVehicles();
+        } catch (err) {
+            console.error("Error raising PDI:", err);
+            alert("❌ Failed: " + err.message);
+        } finally {
+            setSubmittingPdi(null);
+        }
+    }
+
+    function toggleMenu(id) {
+        setActiveMenuId(activeMenuId === id ? null : id);
     }
 
     async function handleLogout() {
@@ -190,10 +227,33 @@ export default function VehicleManagementPage({ session }) {
                                                 </button>
                                             )}
                                         </td>
-                                        <td className="px-4 py-3 text-center">
-                                            <button className="text-gray-600 hover:text-gray-900">
+                                        <td className="px-4 py-3 text-center relative">
+                                            <button
+                                                onClick={() => toggleMenu(vehicle.id)}
+                                                className="w-8 h-8 rounded-lg hover:bg-gray-100 flex items-center justify-center text-gray-400 transition-colors"
+                                            >
                                                 ⋯
                                             </button>
+
+                                            {activeMenuId === vehicle.id && (
+                                                <div className="absolute right-full mr-2 top-1/2 -translate-y-1/2 bg-white border border-gray-100 shadow-xl rounded-2xl py-2 w-48 z-10 animate-in fade-in slide-in-from-right-2 duration-200">
+                                                    {vehicle.assignment_status === "idle" && (
+                                                        <button
+                                                            onClick={() => handleRaisePdi(vehicle)}
+                                                            disabled={submittingPdi === vehicle.id}
+                                                            className="w-full px-4 py-2.5 text-left text-sm font-bold text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                                                        >
+                                                            📋 {submittingPdi === vehicle.id ? "Sending..." : "Send for PDI"}
+                                                        </button>
+                                                    )}
+                                                    <button
+                                                        onClick={() => { /* Placeholder for other actions like edit bike */ setActiveMenuId(null); }}
+                                                        className="w-full px-4 py-2.5 text-left text-sm font-bold text-gray-400 hover:bg-gray-50 flex items-center gap-2 cursor-not-allowed"
+                                                    >
+                                                        ⚙️ Manage Vehicle
+                                                    </button>
+                                                </div>
+                                            )}
                                         </td>
                                     </tr>
                                 ))}

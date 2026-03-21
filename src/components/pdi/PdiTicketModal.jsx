@@ -95,17 +95,19 @@ export default function PdiTicketModal({ open, onClose, pdiRequest, engineers, o
 
             if (pdiErr) throw pdiErr;
 
-            // 2. Update rider_bike_assignments
-            const { error: assignErr } = await supabase
-                .from("rider_bike_assignments")
-                .update({
-                    vehicle_condition: vehicleCondition,
-                    damage_amount: parseFloat(damageAmount) || 0,
-                    pdi_doneby: pdiDoneBy,
-                })
-                .eq("id", pdiRequest.assignment_id);
+            // 2. Update rider_bike_assignments (if one exists)
+            if (pdiRequest.assignment_id) {
+                const { error: assignErr } = await supabase
+                    .from("rider_bike_assignments")
+                    .update({
+                        vehicle_condition: vehicleCondition,
+                        damage_amount: parseFloat(damageAmount) || 0,
+                        pdi_doneby: pdiDoneBy,
+                    })
+                    .eq("id", pdiRequest.assignment_id);
 
-            if (assignErr) throw assignErr;
+                if (assignErr) throw assignErr;
+            }
 
             // 3. Update bikes.status
             const bikeStatus = pdiAction === "Under Repair" ? "under_repair" : "ready_to_deploy";
