@@ -6,7 +6,7 @@ const ITEMS_PER_PAGE = 15;
 
 export default function ManagerWalkins() {
   const [walkins, setWalkins] = useState([]);
-  const [stations, setStations] = useState({});
+  const [stations, setStations] = useState([]);
   const [engineers, setEngineers] = useState({});
   const [models, setModels] = useState({});
 
@@ -63,7 +63,7 @@ export default function ManagerWalkins() {
 
       partsUsedMap[p.walkin_id].push(name);
     });
-    
+
     const partCostLookup = {};
     (partsCatalog || []).forEach(p => {
       partCostLookup[p.id] = p.unit_cost || 0;
@@ -80,7 +80,7 @@ export default function ManagerWalkins() {
     // 3️⃣ Stations
     const { data: stationData } = await supabase
       .from("stations")
-      .select("id, name");
+      .select("id, name, is_buffer");
 
     const stationMap = {};
     (stationData || []).forEach(s => {
@@ -107,7 +107,7 @@ export default function ManagerWalkins() {
       modelMap[m.id] = m.model_name;
     });
 
-    setStations(stationMap);
+    setStations(stationData || []);
     setEngineers(engineerMap);
     setModels(modelMap);
 
@@ -151,7 +151,7 @@ export default function ManagerWalkins() {
 
   // 📊 KPIs (today)
   const todayStr = new Date().toISOString().split("T")[0];
-  
+
   const kpiSource = useMemo(() => {
     //No date selected -> today
     if (!fromDate && !toDate) {
@@ -159,9 +159,9 @@ export default function ManagerWalkins() {
     }
     //date range selected
     return walkins.filter(w => {
-        if (fromDate && new Date(w.logged_at) < new Date(fromDate)) return false;
-        if (toDate && new Date(w.logged_at) > new Date(toDate)) return false;
-        return true;
+      if (fromDate && new Date(w.logged_at) < new Date(fromDate)) return false;
+      if (toDate && new Date(w.logged_at) > new Date(toDate)) return false;
+      return true;
     });
   }, [walkins, fromDate, toDate]);
 
@@ -211,9 +211,11 @@ export default function ManagerWalkins() {
           className="border px-3 py-1 text-sm"
         >
           <option value="">All Stations</option>
-          {Object.entries(stations).map(([id, name]) => (
-            <option key={id} value={id}>{name}</option>
-          ))}
+          {stations
+            .filter(s => !s.is_buffer)
+            .map((s) => (
+              <option key={s.id} value={s.id}>{s.name}</option>
+            ))}
         </select>
 
         <select
@@ -261,7 +263,7 @@ export default function ManagerWalkins() {
           <tbody>
             {pageItems.map(w => (
               <tr key={w.id} className="border-t">
-                <td className="p-2 border">{stations[w.station_id]}</td>
+                <td className="p-2 border">{stations.find(s => s.id === w.station_id)?.name || "-"}</td>
                 <td className="p-2 border">{w.bike_number_text}</td>
                 <td className="p-2 border">{models[w.model_id] || "-"}</td>
                 <td className="p-2 border">{engineers[w.engineer_id]}</td>

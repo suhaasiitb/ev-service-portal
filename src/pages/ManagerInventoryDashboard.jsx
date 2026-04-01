@@ -18,7 +18,7 @@ export default function ManagerInventoryDashboard() {
 
   const [searchTerm, setSearchTerm] = useState("");
 
-  const [qtySort, setQtySort] = useState(null); 
+  const [qtySort, setQtySort] = useState(null);
 
 
   // null | "asc" | "desc"
@@ -55,6 +55,8 @@ export default function ManagerInventoryDashboard() {
       (row) => row.station_id && row.station_id !== "null"
     );
 
+    // Note: we keep ALL rows including buffer stock station
+
     if (invErr) {
       console.error(invErr);
       setMessage("Failed to load inventory: " + invErr.message);
@@ -77,7 +79,7 @@ export default function ManagerInventoryDashboard() {
 
     const { data: stationsData, error: stationsErr } = await supabase
       .from("stations")
-      .select("id, name")
+      .select("id, name, is_buffer")
       .in("id", stationIds);
 
     if (stationsErr) {
@@ -88,7 +90,7 @@ export default function ManagerInventoryDashboard() {
     const stationMetaMap = {};
     (stationsData || []).forEach((s) => {
       const label = s.name || (s.id ? s.id.slice(0, 8) : "Unknown Station");
-      stationMetaMap[s.id] = { label, raw: s };
+      stationMetaMap[s.id] = { label, raw: s, isBuffer: s.is_buffer || false };
     });
     setStationsMeta(stationMetaMap);
 
@@ -139,10 +141,12 @@ export default function ManagerInventoryDashboard() {
           r.quantity <= r.reorder_level
       ).length;
 
+      const meta = stationMetaMap[stationId];
+
       return {
         stationId,
-        stationName:
-          stationMetaMap[stationId]?.label || stationId.slice(0, 8),
+        stationName: meta?.label || stationId.slice(0, 8),
+        isBuffer: meta?.isBuffer || false,
         items,
         summary: {
           totalSkus,
@@ -151,6 +155,13 @@ export default function ManagerInventoryDashboard() {
           lowStockCount,
         },
       };
+    });
+
+    // Sort: real stations first, buffer at the end
+    stationsArr.sort((a, b) => {
+      if (a.isBuffer && !b.isBuffer) return 1;
+      if (!a.isBuffer && b.isBuffer) return -1;
+      return a.stationName.localeCompare(b.stationName);
     });
 
     setInventoryByStation(stationsArr);
@@ -174,28 +185,28 @@ export default function ManagerInventoryDashboard() {
 
   const filteredItems = currentStation
     ? currentStation.items.filter((row) => {
-        if (!searchTerm) return true;
+      if (!searchTerm) return true;
 
-        const q= searchTerm.toLowerCase();
-        const partName= row.parts_catalog?.part_name?.toLowerCase() || "";
-        const sku= row.parts_catalog?.sku?.toLowerCase() || "";
-        const models= (row.model_names || []).join(", ").toLowerCase();
+      const q = searchTerm.toLowerCase();
+      const partName = row.parts_catalog?.part_name?.toLowerCase() || "";
+      const sku = row.parts_catalog?.sku?.toLowerCase() || "";
+      const models = (row.model_names || []).join(", ").toLowerCase();
 
-        return (
-          partName.includes(q) ||
-          sku.includes(q) ||
-          models.includes(q)
-        );
-      })
+      return (
+        partName.includes(q) ||
+        sku.includes(q) ||
+        models.includes(q)
+      );
+    })
       .sort((a, b) => {
-        if (!qtySort)return 0;
+        if (!qtySort) return 0;
 
-        const qa= a.quantity ?? 0;
-        const qb= b.quantity ?? 0;
+        const qa = a.quantity ?? 0;
+        const qb = b.quantity ?? 0;
 
         return qtySort === "asc" ? qa - qb : qb - qa;
       })
-  : [];
+    : [];
 
   const totalItems = filteredItems.length;
   const totalPages =
@@ -260,7 +271,7 @@ export default function ManagerInventoryDashboard() {
     const authUserId = authData.session.user.id;
 
     // 2️⃣ Resolve app user (public.users)
-    const { data: appUser} = await supabase
+    const { data: appUser } = await supabase
       .from("users")
       .select("id")
       .eq("id", authUserId)
@@ -275,7 +286,7 @@ export default function ManagerInventoryDashboard() {
       .from("inventory_master")
       .update({
         quantity: newQty,
-        last_updated_by : appUser.id,
+        last_updated_by: appUser.id,
         updated_at: new Date().toISOString(),
       })
       .eq("id", editRow.id);
@@ -299,9 +310,9 @@ export default function ManagerInventoryDashboard() {
 
       {/* Main Content */}
       <div className="flex-1 p-6">
-        
 
-        {message && <p className= {`mb-4 ${message.startsWith("✅") ? "text-green-600":"text-red-600"}`}>{message}</p>}
+
+        {message && <p className={`mb-4 ${message.startsWith("✅") ? "text-green-600" : "text-red-600"}`}>{message}</p>}
 
         {loading ? (
           <p>Loading inventory...</p>
@@ -325,7 +336,7 @@ export default function ManagerInventoryDashboard() {
                   </option>
                   {inventoryByStation.map((s) => (
                     <option key={s.stationId} value={s.stationId}>
-                      {s.stationName}
+                      {s.isBuffer ? "📦 " : ""}{s.stationName}
                     </option>
                   ))}
                 </select>
@@ -336,11 +347,19 @@ export default function ManagerInventoryDashboard() {
             {currentStation && (
               <div className="bg-white rounded-xl shadow p-4">
 
+                {/* Buffer Stock Banner */}
+                {currentStation.isBuffer && (
+                  <div className="mb-4 flex items-center gap-2 rounded-lg bg-amber-50 border border-amber-200 px-4 py-2 text-sm text-amber-800">
+                    <span className="text-lg">📦</span>
+                    <span><b>Buffer Stock</b> — This inventory is not assigned to any station. Use it to track spare parts held in reserve.</span>
+                  </div>
+                )}
+
                 {/* Metrics + Search Bar */}
                 <div className="mb-4 space-y-3">
 
                   {/* Metrics strip */}
-                  <div className= "grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
                     <div className="bg-gray-50 rounded p-2">
                       <p className="text-gray-500">Total SKUs</p>
                       <p className="text-lg font-bold">
@@ -366,7 +385,7 @@ export default function ManagerInventoryDashboard() {
                       </p>
                     </div>
                   </div>
-                {/* Search Bar */}
+                  {/* Search Bar */}
                   <input
                     type="text"
                     placeholder="Search by Part Name, SKU, or Models..."
@@ -377,7 +396,7 @@ export default function ManagerInventoryDashboard() {
                     }}
                     className="border rounded px-3 py-2 text-sm w-full md:w-1/3"
                   />
-                </div>                
+                </div>
                 {/* summary, table, pagination untouched */}
                 {/* ONLY Edit button enabled */}
                 {/* ...existing JSX above... */}
@@ -388,10 +407,10 @@ export default function ManagerInventoryDashboard() {
                       <th className="p-2 border-r">Part</th>
                       <th className="p-2 border-r">SKU</th>
                       <th className="p-2 border-r">Models</th>
-                      <th 
+                      <th
                         className="p-2 border-r cursor-pointer select-none"
                         onClick={() => {
-                          setQtySort((prev) => 
+                          setQtySort((prev) =>
                             prev === null ? "asc" : prev === "asc" ? "desc" : null
                           );
                           setPage(1);
@@ -401,7 +420,7 @@ export default function ManagerInventoryDashboard() {
                         {qtySort === "asc" && "↑"}
                         {qtySort === "desc" && "↓"}
                       </th>
-                          
+
                       <th className="p-2 border-r">Reorder</th>
                       <th className="p-2 border-r">Unit Cost</th>
                       <th className="p-2 border-r">Stock Value</th>
@@ -431,9 +450,8 @@ export default function ManagerInventoryDashboard() {
                           <td className="p-2 border-r">{part?.sku || "-"}</td>
                           <td className="p-2 border-r">{modelLabel}</td>
                           <td
-                            className={`p-2 border-r ${
-                              isLow ? "text-red-600 font-semibold" : ""
-                            }`}
+                            className={`p-2 border-r ${isLow ? "text-red-600 font-semibold" : ""
+                              }`}
                           >
                             {row.quantity}
                           </td>
@@ -465,9 +483,9 @@ export default function ManagerInventoryDashboard() {
                     {totalItems === 0
                       ? "0"
                       : `${startIndex + 1}–${Math.min(
-                          startIndex + ITEMS_PER_PAGE,
-                          totalItems
-                        )}`}{" "}
+                        startIndex + ITEMS_PER_PAGE,
+                        totalItems
+                      )}`}{" "}
                     of {totalItems} items
                   </span>
                   <div className="flex items-center gap-2">

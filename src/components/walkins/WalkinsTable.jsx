@@ -56,7 +56,7 @@ export default function WalkinsTable({
             <thead className="bg-slate-900/80 text-slate-300 sticky top-0">
               <tr>
                 <th className="px-3 py-2 text-left">Bike</th>
-                <th className="px-3 py-2 text-left">Issue</th>
+                <th className="px-3 py-2 text-left">Parts Used</th>
                 <th className="px-3 py-2 text-left">Engineer</th>
                 <th className="px-3 py-2 text-left">Logged</th>
                 <th className="px-3 py-2 text-left">Cost</th>
@@ -77,8 +77,10 @@ export default function WalkinsTable({
                     <td className="px-3 py-2 whitespace-nowrap">
                       {w.bike_number_text}
                     </td>
-                    <td className="px-3 py-2 max-w-[260px] truncate">
-                      {w.issue_description}
+                    <td className="px-3 py-2 max-w-[260px] truncate text-slate-300">
+                      {w.parts_used && w.parts_used.length > 0
+                        ? w.parts_used.join(", ")
+                        : "-"}
                     </td>
                     <td className="px-3 py-2">
                       {eng ? eng.name : "Unknown"}

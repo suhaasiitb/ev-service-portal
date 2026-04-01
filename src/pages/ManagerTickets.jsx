@@ -10,7 +10,7 @@ export default function ManagerTickets() {
   const navigate = useNavigate();
 
   const [tickets, setTickets] = useState([]);
-  const [stations, setStations] = useState({});
+  const [stations, setStations] = useState([]);
   const [engineers, setEngineers] = useState({});
 
   const [loading, setLoading] = useState(true);
@@ -52,19 +52,19 @@ export default function ManagerTickets() {
 
     // 2️⃣ Fetch stations
     const { data: stationData, error: sErr } = await supabase
-        .from("stations")
-        .select("id, name");
+      .from("stations")
+      .select("id, name, is_buffer");
 
     if (sErr) {
-        setMessage("Failed to load stations: " + sErr.message);
+      setMessage("Failed to load stations: " + sErr.message);
     }
 
     const stationMap = {};
     (stationData || []).forEach(s => {
-        stationMap[s.id] = s.name;
+      stationMap[s.id] = s.name;
     });
 
-    setStations(stationMap);
+    setStations(stationData || []); // Storing the list instead of just the map classes to allow filtering in JSX class
 
     // 3️⃣ Fetch engineers
     const engineerIds = [
@@ -82,7 +82,7 @@ export default function ManagerTickets() {
     });
 
     setTickets(ticketData || []);
-    setStations(stationMap);
+    // setStations already called with array on line 67
     setEngineers(engineerMap);
     setLoading(false);
   }
@@ -154,11 +154,13 @@ export default function ManagerTickets() {
             className="border px-3 py-1 text-sm"
           >
             <option value="">All Stations</option>
-            {Object.entries(stations).map(([id, code]) => (
-              <option key={id} value={id}>
-                {code}
-              </option>
-            ))}
+            {stations
+              .filter(s => !s.is_buffer)
+              .map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                </option>
+              ))}
           </select>
 
           <select
@@ -210,7 +212,7 @@ export default function ManagerTickets() {
                     <tr key={t.id} className="border-t">
                       <td className="p-2 border">{t.ticket_no}</td>
                       <td className="p-2 border">
-                        {stations[t.station_id] || "-"}
+                        {stations.find(s => s.id === t.station_id)?.name || "-"}
                       </td>
                       <td className="p-2 border">{t.bike_number_text}</td>
                       <td className="p-2 border">{t.issue_description}</td>
