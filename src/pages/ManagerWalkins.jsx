@@ -207,7 +207,10 @@ export default function ManagerWalkins() {
       <div className="flex flex-wrap gap-3 mb-4">
         <select
           value={stationFilter}
-          onChange={e => setStationFilter(e.target.value)}
+          onChange={e => {
+            setStationFilter(e.target.value);
+            setPage(1);
+          }}
           className="border px-3 py-1 text-sm"
         >
           <option value="">All Stations</option>
@@ -220,7 +223,10 @@ export default function ManagerWalkins() {
 
         <select
           value={engineerFilter}
-          onChange={e => setEngineerFilter(e.target.value)}
+          onChange={e => {
+            setEngineerFilter(e.target.value);
+            setPage(1);
+          }}
           className="border px-3 py-1 text-sm"
         >
           <option value="">All Engineers</option>
@@ -232,13 +238,19 @@ export default function ManagerWalkins() {
         <input
           type="date"
           value={fromDate}
-          onChange={e => setFromDate(e.target.value)}
+          onChange={e => {
+            setFromDate(e.target.value);
+            setPage(1);
+          }}
           className="border px-3 py-1 text-sm"
         />
         <input
           type="date"
           value={toDate}
-          onChange={e => setToDate(e.target.value)}
+          onChange={e => {
+            setToDate(e.target.value);
+            setPage(1);
+          }}
           className="border px-3 py-1 text-sm"
         />
       </div>
@@ -247,40 +259,70 @@ export default function ManagerWalkins() {
       {loading ? (
         <p>Loading walk-ins…</p>
       ) : (
-        <table className="w-full border bg-white text-sm">
-          <thead className="bg-gray-200">
-            <tr>
-              <th className="p-2 border">Station</th>
-              <th className="p-2 border">Bike</th>
-              <th className="p-2 border">Model</th>
-              <th className="p-2 border">Engineer</th>
-              <th className="p-2 border">Parts Used</th>
-              <th className="p-2 border">Parts Cost</th>
-              <th className="p-2 border">Charged</th>
-              <th className="p-2 border">Logged At</th>
-            </tr>
-          </thead>
-          <tbody>
-            {pageItems.map(w => (
-              <tr key={w.id} className="border-t">
-                <td className="p-2 border">{stations.find(s => s.id === w.station_id)?.name || "-"}</td>
-                <td className="p-2 border">{w.bike_number_text}</td>
-                <td className="p-2 border">{models[w.model_id] || "-"}</td>
-                <td className="p-2 border">{engineers[w.engineer_id]}</td>
-                <td className="p-2 border">
-                  {w.parts_used.length > 0
-                    ? w.parts_used.join(", ")
-                    : "-"}
-                </td>
-                <td className="p-2 border">₹{w.parts_cost}</td>
-                <td className="p-2 border">₹{w.cost_charged}</td>
-                <td className="p-2 border">
-                  {new Date(w.logged_at).toLocaleString()}
-                </td>
+        <>
+          <table className="w-full border bg-white text-sm">
+            <thead className="bg-gray-200">
+              <tr>
+                <th className="p-2 border">Station</th>
+                <th className="p-2 border">Bike</th>
+                <th className="p-2 border">Model</th>
+                <th className="p-2 border">Engineer</th>
+                <th className="p-2 border">Parts Used</th>
+                <th className="p-2 border">Parts Cost</th>
+                <th className="p-2 border">Charged</th>
+                <th className="p-2 border">Logged At</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {pageItems.map(w => (
+                <tr key={w.id} className="border-t">
+                  <td className="p-2 border">{stations.find(s => s.id === w.station_id)?.name || "-"}</td>
+                  <td className="p-2 border">{w.bike_number_text}</td>
+                  <td className="p-2 border">{models[w.model_id] || "-"}</td>
+                  <td className="p-2 border">{engineers[w.engineer_id]}</td>
+                  <td className="p-2 border">
+                    {w.parts_used.length > 0
+                      ? w.parts_used.join(", ")
+                      : "-"}
+                  </td>
+                  <td className="p-2 border">₹{w.parts_cost}</td>
+                  <td className="p-2 border">₹{w.cost_charged}</td>
+                  <td className="p-2 border">
+                    {new Date(w.logged_at).toLocaleString()}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+
+          {/* Pagination Section */}
+          <div className="flex justify-between items-center mt-3 text-sm">
+            <span>
+              Showing {(page - 1) * ITEMS_PER_PAGE + 1}–
+              {Math.min(page * ITEMS_PER_PAGE, filtered.length)} of{" "}
+              {filtered.length}
+            </span>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setPage(p => Math.max(1, p - 1))}
+                disabled={page === 1}
+                className="px-2 py-1 border rounded disabled:opacity-50 hover:bg-gray-100 transition"
+              >
+                Prev
+              </button>
+              <span>
+                Page {page} of {totalPages}
+              </span>
+              <button
+                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                disabled={page === totalPages}
+                className="px-2 py-1 border rounded disabled:opacity-50 hover:bg-gray-100 transition"
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        </>
       )}
     </ManagerLayout>
   );
