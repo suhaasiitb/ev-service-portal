@@ -3,6 +3,7 @@ import { supabase } from "../../lib/supabaseClient";
 import RiderSidebar from "../../components/rider/RiderSidebar";
 import StatusBadge from "../../components/common/StatusBadge";
 import AssignVehicleModal from "../../components/rider/AssignVehicleModal";
+import UnassignVehicleModal from "../../components/rider/UnassignVehicleModal";
 import { useVehicles } from "../../hooks/useVehicles";
 import { useTeamLeads } from "../../hooks/useTeamLeads";
 import { useClients } from "../../hooks/useClients";
@@ -15,6 +16,7 @@ export default function VehicleManagementPage({ session }) {
     const [stations, setStations] = useState([]);
     const [searchTerm, setSearchTerm] = useState("");
     const [showAssignModal, setShowAssignModal] = useState(false);
+    const [showUnassignModal, setShowUnassignModal] = useState(false);
     const [selectedVehicle, setSelectedVehicle] = useState(null);
     const [activeMenuId, setActiveMenuId] = useState(null);
     const [submittingPdi, setSubmittingPdi] = useState(null); // stores bike_id being processed
@@ -40,24 +42,9 @@ export default function VehicleManagementPage({ session }) {
         );
     });
 
-    async function handleUnassign(assignmentId) {
-        if (!confirm("Are you sure you want to unassign this rider?")) return;
-
-        try {
-            // Delete the assignment record (no status column exists)
-            const { error } = await supabase
-                .from("rider_bike_assignments")
-                .delete()
-                .eq("id", assignmentId);
-
-            if (error) throw error;
-
-            alert("Vehicle unassigned successfully");
-            refetchVehicles();
-        } catch (err) {
-            console.error("Error unassigning:", err);
-            alert("Failed to unassign vehicle: " + err.message);
-        }
+    function handleUnassignClick(vehicle) {
+        setSelectedVehicle(vehicle);
+        setShowUnassignModal(true);
     }
 
     function handleAssignClick(vehicle) {
@@ -100,21 +87,7 @@ export default function VehicleManagementPage({ session }) {
         setActiveMenuId(activeMenuId === id ? null : id);
     }
 
-    async function handleLogout() {
-        try {
-            // Non-blocking logout ensures UI responds immediately
-            supabase.auth.signOut();
-        } catch (err) {
-            console.error("Logout error:", err);
-        } finally {
-            // Fallback for immediate redirection
-            setTimeout(() => {
-                if (window.location.pathname.includes("rider-dashboard")) {
-                    window.location.href = "/ev-service-portal/";
-                }
-            }, 500);
-        }
-    }
+
 
     return (
         <div className="flex min-h-screen bg-gray-50">
@@ -133,15 +106,9 @@ export default function VehicleManagementPage({ session }) {
                     </div>
 
                     <div className="flex gap-3 items-center">
-                        <span className="text-sm text-gray-600">
+                        <span className="text-sm text-gray-600 font-bold">
                             Welcome, {session?.user?.email}
                         </span>
-                        <button
-                            onClick={handleLogout}
-                            className="px-4 py-2 text-sm text-gray-700 hover:text-gray-900 border border-gray-200 rounded-xl hover:bg-gray-100 transition-all font-bold"
-                        >
-                            🚪 Sign Out
-                        </button>
                     </div>
                 </div>
 
@@ -212,7 +179,7 @@ export default function VehicleManagementPage({ session }) {
                                                         {vehicle.assignee_name}
                                                     </span>
                                                     <button
-                                                        onClick={() => handleUnassign(vehicle.assignment_id)}
+                                                        onClick={() => handleUnassignClick(vehicle)}
                                                         className="text-red-500 hover:text-red-700 font-bold"
                                                     >
                                                         ×
@@ -280,6 +247,19 @@ export default function VehicleManagementPage({ session }) {
                     stations={stations}
                     teamLeads={teamLeads}
                     clients={clients}
+                />
+
+                <UnassignVehicleModal
+                    open={showUnassignModal}
+                    onClose={() => {
+                        setShowUnassignModal(false);
+                        setSelectedVehicle(null);
+                    }}
+                    onSuccess={refetchVehicles}
+                    assignmentId={selectedVehicle?.assignment_id}
+                    bikeId={selectedVehicle?.id}
+                    stationId={selectedVehicle?.station_id}
+                    session={session}
                 />
             </div>
         </div>

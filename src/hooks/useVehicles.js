@@ -14,17 +14,18 @@ export function useVehicles() {
             const { data, error: vehiclesError } = await supabase
                 .from("bikes")
                 .select(`
-          *,
-          bike_models(model_name),
-          assignments:rider_bike_assignments(
-            id,
-            battery_code,
-            rider_id,
-            riders(name)
-          )
-          ).order("created_at", { ascending: false }).limit(1)
-        `)
-                .order("bike_number");
+                    *,
+                    bike_models(model_name),
+                    assignments:rider_bike_assignments(
+                        id,
+                        battery_code,
+                        rider_id,
+                        unassigned_at,
+                        riders(name)
+                    )
+                `)
+                .order("bike_number")
+                .order("created_at", { foreignTable: "rider_bike_assignments", ascending: false });
 
             if (vehiclesError) throw vehiclesError;
 
@@ -37,7 +38,7 @@ export function useVehicles() {
                     ...vehicle,
                     model_name: vehicle.bike_models?.model_name || "-",
                     assignment_id: activeAssignment?.id || null,
-                    assignment_status: activeAssignment ? "active" : "idle", // Assuming the first assignment is the active one
+                    assignment_status: (activeAssignment && !activeAssignment.unassigned_at) ? "active" : "idle", // Check if active assignment is actually unassigned
                     battery_code: activeAssignment?.battery_code || "-",
                     assignee_name: activeAssignment?.riders?.name || null,
                 };

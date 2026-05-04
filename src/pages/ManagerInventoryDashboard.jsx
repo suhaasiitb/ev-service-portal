@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabaseClient";
+import BulkInventoryUploadModal from "../components/inventory/BulkInventoryUploadModal";
 
 
 const ITEMS_PER_PAGE = 15;
@@ -23,10 +24,13 @@ export default function ManagerInventoryDashboard() {
 
   // null | "asc" | "desc"
 
-  // 🔹 ADD: Edit inventory modal state
+  // Edit inventory modal state
   const [showEditModal, setShowEditModal] = useState(false);
   const [editRow, setEditRow] = useState(null);
   const [editMode, setEditMode] = useState("overwrite"); // overwrite | delta
+
+  // Bulk upload modal state
+  const [showBulkModal, setShowBulkModal] = useState(false);
   const [editValue, setEditValue] = useState("");
 
   async function fetchInventory() {
@@ -320,8 +324,8 @@ export default function ManagerInventoryDashboard() {
           <p>No inventory data found.</p>
         ) : (
           <>
-            {/* Station Selector */}
-            <div className="flex flex-wrap items-center mb-4 gap-3">
+            {/* Station Selector + Bulk Upload */}
+            <div className="flex flex-wrap items-end justify-between mb-4 gap-3">
               <div>
                 <label className="block text-sm text-gray-600 mb-1">
                   Select Station
@@ -341,6 +345,13 @@ export default function ManagerInventoryDashboard() {
                   ))}
                 </select>
               </div>
+
+              <button
+                onClick={() => setShowBulkModal(true)}
+                className="flex items-center gap-2 px-4 py-2 text-sm font-bold bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition shadow-md shadow-indigo-500/20"
+              >
+                📤 Bulk Upload
+              </button>
             </div>
 
             {/* Snapshot + Table (UNCHANGED) */}
@@ -514,7 +525,17 @@ export default function ManagerInventoryDashboard() {
         )}
       </div>
 
-      {/* 🔹 ADD: Edit Modal (overlay only) */}
+      {/* Bulk Upload Modal */}
+      <BulkInventoryUploadModal
+        open={showBulkModal}
+        onClose={() => setShowBulkModal(false)}
+        onSuccess={() => {
+          setShowBulkModal(false);
+          fetchInventory();
+        }}
+      />
+
+      {/* Edit Modal (overlay only) */}
       {showEditModal && editRow && (
         <div className="fixed inset-0 bg-black bg-opacity-40 flex justify-center items-center z-50">
           <div className="bg-white p-6 rounded-xl w-full max-w-md shadow-xl">
