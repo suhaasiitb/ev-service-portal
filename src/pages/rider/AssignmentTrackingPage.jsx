@@ -1,10 +1,25 @@
 import { useState } from "react";
 import RiderSidebar from "../../components/rider/RiderSidebar";
 import { useAssignmentTracking } from "../../hooks/useAssignmentTracking";
+import AddRentModal from "../../components/rider/AddRentModal";
+import BulkRentUploadModal from "../../components/rider/BulkRentUploadModal";
+import AddRentQRModal from "../../components/rider/AddRentQRModal";
+import AddWaiverModal from "../../components/rider/AddWaiverModal";
+import AddChallanModal from "../../components/rider/AddChallanModal";
+import AddRefundModal from "../../components/rider/AddRefundModal";
 
 export default function AssignmentTrackingPage({ session }) {
-    const { assignments, loading, error } = useAssignmentTracking();
+    const { assignments, loading, error, refetchAssignments } = useAssignmentTracking();
     const [searchTerm, setSearchTerm] = useState("");
+
+    // Modal state
+    const [showAddRentModal, setShowAddRentModal] = useState(false);
+    const [showAddRentQRModal, setShowAddRentQRModal] = useState(false);
+    const [showAddWaiverModal, setShowAddWaiverModal] = useState(false);
+    const [showAddChallanModal, setShowAddChallanModal] = useState(false);
+    const [showAddRefundModal, setShowAddRefundModal] = useState(false);
+    const [selectedAssignment, setSelectedAssignment] = useState(null);
+    const [showBulkModal, setShowBulkModal] = useState(false);
 
     // Filter assignments
     const filteredAssignments = assignments.filter((assignment) => {
@@ -35,9 +50,15 @@ export default function AssignmentTrackingPage({ session }) {
                     </div>
 
                     <div className="flex gap-3 items-center">
-                        <span className="text-sm text-gray-600 font-bold">
+                        <span className="text-sm text-gray-600 font-bold hidden md:block">
                             Welcome, {session?.user?.email}
                         </span>
+                        <button
+                            onClick={() => setShowBulkModal(true)}
+                            className="flex items-center gap-2 px-4 py-2 text-sm font-bold bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition shadow-md shadow-indigo-500/20"
+                        >
+                            📤 Bulk Rent Upload
+                        </button>
                     </div>
                 </div>
 
@@ -64,58 +85,136 @@ export default function AssignmentTrackingPage({ session }) {
                         </div>
                     ) : (
                         <div className="overflow-auto flex-1">
-                            <table className="w-full whitespace-nowrap">
+                            <table className="w-full whitespace-nowrap table-fixed" style={{ minWidth: "3200px" }}>
                                 <thead className="bg-gray-100 border-b border-gray-200 sticky top-0 z-10">
                                     <tr>
-                                        <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Aadhar No</th>
-                                        <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Name</th>
-                                        <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Contact</th>
-                                        <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Client</th>
-                                        <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Client ID</th>
-                                        <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Vehicle No.</th>
-                                        <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 text-blue-600">Status(Active/Inactive)</th>
-                                        <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">TL</th>
-                                        <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Deposit</th>
-                                        <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 text-blue-600">Rental First Date</th>
-                                        <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Offboarding Date</th>
-                                        <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Reason for Offboarding</th>
-                                        <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 text-blue-600">Rental Amount</th>
-                                        <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 text-blue-600">Rent Received</th>
-                                        <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 text-blue-600">Rent Received QR</th>
-                                        <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 text-blue-600">Waiver Amount</th>
-                                        <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 text-blue-600">Traffic Challan</th>
-                                        <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 text-blue-600">Damage Charges</th>
-                                        <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 text-blue-600">Difference Amount</th>
-                                        <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 text-blue-600">Rental Status</th>
-                                        <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 text-blue-600">Refund Status</th>
-                                        <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 text-blue-600">Refund Date</th>
+                                        <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 w-[120px]">Aadhar No</th>
+                                        <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 w-[150px]">Name</th>
+                                        <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 w-[120px]">Contact</th>
+                                        <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 w-[120px]">Client</th>
+                                        <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 w-[120px]">Client ID</th>
+                                        <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 w-[150px]">Vehicle No.</th>
+                                        <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 w-[150px]">Battery Mode</th>
+                                        <th className="px-4 py-3 text-center text-sm font-semibold text-blue-600 w-[150px]">Status(Active/Inactive)</th>
+                                        <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 w-[120px]">TL</th>
+                                        <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 w-[100px]">Deposit</th>
+                                        <th className="px-4 py-3 text-center text-sm font-semibold text-blue-600 w-[150px]">Rental First Date</th>
+                                        <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 w-[150px]">Offboarding Date</th>
+                                        <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 w-[200px]">Reason for Offboarding</th>
+                                        <th className="px-4 py-3 text-center text-sm font-semibold text-blue-600 w-[120px]">Rental Amount</th>
+                                        <th className="px-4 py-3 text-center text-sm font-semibold text-blue-600 w-[150px]">Rent Received</th>
+                                        <th className="px-4 py-3 text-center text-sm font-semibold text-blue-600 w-[150px]">Rent Received QR</th>
+                                        <th className="px-4 py-3 text-center text-sm font-semibold text-blue-600 w-[120px]">Waiver Amount</th>
+                                        <th className="px-4 py-3 text-center text-sm font-semibold text-blue-600 w-[120px]">Traffic Challan</th>
+                                        <th className="px-4 py-3 text-center text-sm font-semibold text-blue-600 w-[120px]">Damage Charges</th>
+                                        <th className="px-4 py-3 text-center text-sm font-semibold text-blue-600 w-[150px]">Difference Amount</th>
+                                        <th className="px-4 py-3 text-center text-sm font-semibold text-blue-600 w-[120px]">Rental Status</th>
+                                        <th className="px-4 py-3 text-center text-sm font-semibold text-blue-600 w-[120px]">Refund Status</th>
+                                        <th className="px-4 py-3 text-center text-sm font-semibold text-blue-600 w-[120px]">Refund Date</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-200">
                                     {filteredAssignments.map((row) => (
                                         <tr key={row.id} className="hover:bg-gray-50">
-                                            <td className="px-4 py-3 text-sm text-gray-900">{row.aadhar_no}</td>
-                                            <td className="px-4 py-3 text-sm text-gray-900 font-medium">{row.name}</td>
-                                            <td className="px-4 py-3 text-sm text-gray-600">{row.phone}</td>
-                                            <td className="px-4 py-3 text-sm text-gray-600">{row.client_name}</td>
-                                            <td className="px-4 py-3 text-sm text-gray-600">{row.clientele_id}</td>
-                                            <td className="px-4 py-3 text-sm text-gray-900 font-medium">{row.bike_number}</td>
-                                            <td className="px-4 py-3 text-sm text-gray-400 text-center">{row.status}</td>
-                                            <td className="px-4 py-3 text-sm text-gray-600">{row.team_lead_name}</td>
-                                            <td className="px-4 py-3 text-sm text-gray-900">₹{row.deposit_collected}</td>
-                                            <td className="px-4 py-3 text-sm text-gray-400 text-center">{row.rental_first_date}</td>
-                                            <td className="px-4 py-3 text-sm text-gray-600">{row.unassigned_at}</td>
-                                            <td className="px-4 py-3 text-sm text-gray-600 truncate max-w-xs" title={row.unassign_reason}>{row.unassign_reason}</td>
-                                            <td className="px-4 py-3 text-sm text-gray-400 text-center">{row.rental_amount}</td>
-                                            <td className="px-4 py-3 text-sm text-gray-400 text-center">{row.rent_received}</td>
-                                            <td className="px-4 py-3 text-sm text-gray-400 text-center">{row.rent_received_qr}</td>
-                                            <td className="px-4 py-3 text-sm text-gray-400 text-center">{row.waiver_amount}</td>
-                                            <td className="px-4 py-3 text-sm text-gray-400 text-center">{row.traffic_challan}</td>
-                                            <td className="px-4 py-3 text-sm text-gray-400 text-center">{row.damage_charges}</td>
-                                            <td className="px-4 py-3 text-sm text-gray-400 text-center">{row.difference_amount}</td>
-                                            <td className="px-4 py-3 text-sm text-gray-400 text-center">{row.rental_status}</td>
-                                            <td className="px-4 py-3 text-sm text-gray-400 text-center">{row.refund_status}</td>
-                                            <td className="px-4 py-3 text-sm text-gray-400 text-center">{row.refund_date}</td>
+                                            <td className="px-4 py-3 text-sm text-gray-900 truncate" title={row.aadhar_no}>{row.aadhar_no}</td>
+                                            <td className="px-4 py-3 text-sm text-gray-900 font-medium truncate" title={row.name}>{row.name}</td>
+                                            <td className="px-4 py-3 text-sm text-gray-600 truncate" title={row.phone}>{row.phone}</td>
+                                            <td className="px-4 py-3 text-sm text-gray-600 truncate" title={row.client_name}>{row.client_name}</td>
+                                            <td className="px-4 py-3 text-sm text-gray-600 truncate" title={row.clientele_id}>{row.clientele_id}</td>
+                                            <td className="px-4 py-3 text-sm text-gray-900 font-medium truncate" title={row.bike_number}>{row.bike_number}</td>
+                                            <td className="px-4 py-3 text-sm text-gray-600 truncate" title={row.battery_mode}>{row.battery_mode}</td>
+                                            <td className="px-4 py-3 text-sm text-gray-400 text-center truncate">{row.status}</td>
+                                            <td className="px-4 py-3 text-sm text-gray-600 truncate" title={row.team_lead_name}>{row.team_lead_name}</td>
+                                            <td className="px-4 py-3 text-sm text-gray-900 truncate">₹{row.deposit_collected}</td>
+                                            <td className="px-4 py-3 text-sm text-gray-400 text-center truncate">{row.rental_first_date}</td>
+                                            <td className="px-4 py-3 text-sm text-gray-600 truncate">{row.unassigned_at}</td>
+                                            <td className="px-4 py-3 text-sm text-gray-600 truncate" title={row.unassign_reason}>{row.unassign_reason}</td>
+                                            <td className="px-4 py-3 text-sm text-gray-400 text-center truncate">{row.rental_amount}</td>
+                                            <td className="px-4 py-3 text-sm text-gray-900 font-bold text-center truncate">
+                                                <div className="flex items-center justify-center gap-2">
+                                                    <span className="truncate" title={row.rent_received}>{row.rent_received}</span>
+                                                    <button
+                                                        onClick={() => {
+                                                            setSelectedAssignment(row);
+                                                            setShowAddRentModal(true);
+                                                        }}
+                                                        className="w-5 h-5 rounded-full bg-blue-50 text-blue-600 border border-blue-200 shadow-sm flex shrink-0 items-center justify-center text-sm font-bold hover:bg-blue-100 hover:scale-105 transition-all"
+                                                        title="Add Rent"
+                                                    >
+                                                        +
+                                                    </button>
+                                                </div>
+                                            </td>
+                                            <td className="px-4 py-3 text-sm text-gray-900 font-bold text-center truncate">
+                                                <div className="flex items-center justify-center gap-2">
+                                                    <span className="truncate" title={row.rent_received_qr}>{row.rent_received_qr}</span>
+                                                    <button
+                                                        onClick={() => {
+                                                            setSelectedAssignment(row);
+                                                            setShowAddRentQRModal(true);
+                                                        }}
+                                                        className="w-5 h-5 rounded-full bg-indigo-50 text-indigo-600 border border-indigo-200 shadow-sm flex shrink-0 items-center justify-center text-sm font-bold hover:bg-indigo-100 hover:scale-105 transition-all"
+                                                        title="Add QR Rent"
+                                                    >
+                                                        +
+                                                    </button>
+                                                </div>
+                                            </td>
+                                            <td className="px-4 py-3 text-sm text-gray-900 font-bold text-center truncate">
+                                                <div className="flex items-center justify-center gap-2">
+                                                    <span className="truncate" title={row.waiver_amount}>{row.waiver_amount}</span>
+                                                    <button
+                                                        onClick={() => {
+                                                            setSelectedAssignment(row);
+                                                            setShowAddWaiverModal(true);
+                                                        }}
+                                                        className="w-5 h-5 rounded-full bg-red-50 text-red-600 border border-red-200 shadow-sm flex shrink-0 items-center justify-center text-sm font-bold hover:bg-red-100 hover:scale-105 transition-all"
+                                                        title="Add Waiver"
+                                                    >
+                                                        +
+                                                    </button>
+                                                </div>
+                                            </td>
+                                            <td className="px-4 py-3 text-sm text-gray-900 font-bold text-center truncate">
+                                                <div className="flex items-center justify-center gap-2">
+                                                    <span className="truncate" title={row.traffic_challan}>{row.traffic_challan}</span>
+                                                    <button
+                                                        onClick={() => {
+                                                            setSelectedAssignment(row);
+                                                            setShowAddChallanModal(true);
+                                                        }}
+                                                        className="w-5 h-5 rounded-full bg-orange-50 text-orange-600 border border-orange-200 shadow-sm flex shrink-0 items-center justify-center text-sm font-bold hover:bg-orange-100 hover:scale-105 transition-all"
+                                                        title="Add Challan"
+                                                    >
+                                                        +
+                                                    </button>
+                                                </div>
+                                            </td>
+                                            <td className="px-4 py-3 text-sm text-gray-400 text-center truncate">{row.damage_charges}</td>
+                                            <td className={`px-4 py-3 text-sm font-bold text-center truncate ${row.raw_difference < 0 ? "text-red-600" : "text-green-600"}`}>
+                                                {row.difference_amount}
+                                            </td>
+                                            <td className={`px-4 py-3 text-sm font-bold text-center truncate ${row.raw_difference < 0 ? "text-red-600" : "text-green-600"}`}>
+                                                {row.rental_status}
+                                            </td>
+                                            <td className="px-4 py-3 text-sm text-gray-900 font-bold text-center truncate">
+                                                <div className="flex items-center justify-center gap-2">
+                                                    <span className="truncate" title={row.refund_status}>{row.refund_status}</span>
+                                                    {row.status === "Inactive" && (
+                                                        <button
+                                                            onClick={() => {
+                                                                setSelectedAssignment(row);
+                                                                setShowAddRefundModal(true);
+                                                            }}
+                                                            className="w-5 h-5 rounded-full bg-teal-50 text-teal-600 border border-teal-200 shadow-sm flex shrink-0 items-center justify-center text-sm font-bold hover:bg-teal-100 hover:scale-105 transition-all"
+                                                            title="Update Refund"
+                                                        >
+                                                            +
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            </td>
+                                            <td className="px-4 py-3 text-sm text-gray-400 text-center truncate">{row.refund_date}</td>
                                         </tr>
                                     ))}
                                     {filteredAssignments.length === 0 && (
@@ -131,6 +230,86 @@ export default function AssignmentTrackingPage({ session }) {
                     )}
                 </div>
             </div>
+
+            {/* Modals */}
+            <AddRentModal
+                open={showAddRentModal}
+                assignment={selectedAssignment}
+                onClose={() => {
+                    setShowAddRentModal(false);
+                    setSelectedAssignment(null);
+                }}
+                onSuccess={() => {
+                    setShowAddRentModal(false);
+                    setSelectedAssignment(null);
+                    refetchAssignments();
+                }}
+            />
+
+            <AddRentQRModal
+                open={showAddRentQRModal}
+                assignment={selectedAssignment}
+                onClose={() => {
+                    setShowAddRentQRModal(false);
+                    setSelectedAssignment(null);
+                }}
+                onSuccess={() => {
+                    setShowAddRentQRModal(false);
+                    setSelectedAssignment(null);
+                    refetchAssignments();
+                }}
+            />
+
+            <AddWaiverModal
+                open={showAddWaiverModal}
+                assignment={selectedAssignment}
+                onClose={() => {
+                    setShowAddWaiverModal(false);
+                    setSelectedAssignment(null);
+                }}
+                onSuccess={() => {
+                    setShowAddWaiverModal(false);
+                    setSelectedAssignment(null);
+                    refetchAssignments();
+                }}
+            />
+
+            <AddChallanModal
+                open={showAddChallanModal}
+                assignment={selectedAssignment}
+                onClose={() => {
+                    setShowAddChallanModal(false);
+                    setSelectedAssignment(null);
+                }}
+                onSuccess={() => {
+                    setShowAddChallanModal(false);
+                    setSelectedAssignment(null);
+                    refetchAssignments();
+                }}
+            />
+
+            <AddRefundModal
+                open={showAddRefundModal}
+                assignment={selectedAssignment}
+                onClose={() => {
+                    setShowAddRefundModal(false);
+                    setSelectedAssignment(null);
+                }}
+                onSuccess={() => {
+                    setShowAddRefundModal(false);
+                    setSelectedAssignment(null);
+                    refetchAssignments();
+                }}
+            />
+
+            <BulkRentUploadModal
+                open={showBulkModal}
+                onClose={() => setShowBulkModal(false)}
+                onSuccess={() => {
+                    setShowBulkModal(false);
+                    refetchAssignments();
+                }}
+            />
         </div>
     );
 }
