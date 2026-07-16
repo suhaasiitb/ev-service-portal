@@ -7,6 +7,7 @@ import AddRentQRModal from "../../components/rider/AddRentQRModal";
 import AddWaiverModal from "../../components/rider/AddWaiverModal";
 import AddChallanModal from "../../components/rider/AddChallanModal";
 import AddRefundModal from "../../components/rider/AddRefundModal";
+import AddDepositModal from "../../components/rider/AddDepositModal";
 
 export default function AssignmentTrackingPage({ session }) {
     const { assignments, loading, error, refetchAssignments } = useAssignmentTracking();
@@ -18,6 +19,7 @@ export default function AssignmentTrackingPage({ session }) {
     const [showAddWaiverModal, setShowAddWaiverModal] = useState(false);
     const [showAddChallanModal, setShowAddChallanModal] = useState(false);
     const [showAddRefundModal, setShowAddRefundModal] = useState(false);
+    const [showAddDepositModal, setShowAddDepositModal] = useState(false);
     const [selectedAssignment, setSelectedAssignment] = useState(null);
     const [showBulkModal, setShowBulkModal] = useState(false);
 
@@ -125,7 +127,21 @@ export default function AssignmentTrackingPage({ session }) {
                                             <td className="px-4 py-3 text-sm text-gray-600 truncate" title={row.battery_mode}>{row.battery_mode}</td>
                                             <td className="px-4 py-3 text-sm text-gray-400 text-center truncate">{row.status}</td>
                                             <td className="px-4 py-3 text-sm text-gray-600 truncate" title={row.team_lead_name}>{row.team_lead_name}</td>
-                                            <td className="px-4 py-3 text-sm text-gray-900 truncate">₹{row.deposit_collected}</td>
+                                            <td className="px-4 py-3 text-sm text-gray-900 font-bold truncate">
+                                                <div className="flex items-center gap-2">
+                                                    <span>₹{row.deposit_collected}</span>
+                                                    <button
+                                                        onClick={() => {
+                                                            setSelectedAssignment(row);
+                                                            setShowAddDepositModal(true);
+                                                        }}
+                                                        className="w-5 h-5 rounded-full bg-yellow-50 text-yellow-600 border border-yellow-200 shadow-sm flex shrink-0 items-center justify-center text-sm font-bold hover:bg-yellow-100 hover:scale-105 transition-all"
+                                                        title="Add Extra Deposit"
+                                                    >
+                                                        +
+                                                    </button>
+                                                </div>
+                                            </td>
                                             <td className="px-4 py-3 text-sm text-gray-400 text-center truncate">{row.rental_first_date}</td>
                                             <td className="px-4 py-3 text-sm text-gray-600 truncate">{row.unassigned_at}</td>
                                             <td className="px-4 py-3 text-sm text-gray-600 truncate" title={row.unassign_reason}>{row.unassign_reason}</td>
@@ -297,6 +313,20 @@ export default function AssignmentTrackingPage({ session }) {
                 }}
                 onSuccess={() => {
                     setShowAddRefundModal(false);
+                    setSelectedAssignment(null);
+                    refetchAssignments();
+                }}
+            />
+
+            <AddDepositModal
+                open={showAddDepositModal}
+                assignment={selectedAssignment}
+                onClose={() => {
+                    setShowAddDepositModal(false);
+                    setSelectedAssignment(null);
+                }}
+                onSuccess={() => {
+                    setShowAddDepositModal(false);
                     setSelectedAssignment(null);
                     refetchAssignments();
                 }}

@@ -40,6 +40,9 @@ export function useAssignmentTracking() {
                     ),
                     traffic_challans (
                         amount
+                    ),
+                    deposit_collections (
+                        amount
                     )
                 `)
                 .order('created_at', { ascending: false });
@@ -59,10 +62,14 @@ export function useAssignmentTracking() {
                 const totalRentQR = (row.rent_collections_qr || []).reduce((sum, coll) => sum + Number(coll.amount), 0);
                 const totalWaiver = (row.rent_waivers || []).reduce((sum, coll) => sum + Number(coll.amount), 0);
                 const totalChallan = (row.traffic_challans || []).reduce((sum, coll) => sum + Number(coll.amount), 0);
+                const totalExtraDeposit = (row.deposit_collections || []).reduce((sum, coll) => sum + Number(coll.amount), 0);
+
+                const baseDeposit = Number(row.deposit_collected || 0);
+                const finalDeposit = baseDeposit + totalExtraDeposit;
 
                 // Difference Amount Calculation
                 const raw_rental = Number(row.rental_amount || 0);
-                const raw_deposit = Number(row.deposit_collected || 0);
+                const raw_deposit = finalDeposit;
                 const raw_damage = 0; // Skipping for now
                 
                 let diffAmount = 0;
@@ -94,7 +101,7 @@ export function useAssignmentTracking() {
                     // From team_leads
                     team_lead_name: row.team_leads?.name || "-",
                     // Assignment details
-                    deposit_collected: row.deposit_collected || 0,
+                    deposit_collected: finalDeposit,
                     rental_first_date: rentalFirstDate,
                     unassigned_at: row.unassigned_at ? new Date(row.unassigned_at).toLocaleDateString() : "-",
                     unassign_reason: row.unassign_reason || "-",
