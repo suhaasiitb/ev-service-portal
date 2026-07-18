@@ -45,7 +45,7 @@ export function useAssignmentTracking() {
                         amount
                     )
                 `)
-                .order('created_at', { ascending: false });
+                .order('assigned_at', { ascending: true });
 
             if (fetchError) throw fetchError;
 
@@ -68,7 +68,32 @@ export function useAssignmentTracking() {
                 const finalDeposit = baseDeposit + totalExtraDeposit;
 
                 // Difference Amount Calculation
-                const raw_rental = Number(row.rental_amount || 0);
+                let raw_rental = Number(row.rental_amount || 0);
+
+                // Real-time calculation for offboarded riders
+                if (row.unassigned_at && row.assigned_at) {
+                    let daily_rate = 0;
+                    if (row.battery_mode === 'Batterypool-Fixed') daily_rate = 190;
+                    else if (row.battery_mode === 'Batterypool-Swap') daily_rate = 215;
+                    else if (row.battery_mode === 'Batterypool-Double') daily_rate = 250;
+
+                    const rental_start = new Date(row.assigned_at);
+                    rental_start.setDate(rental_start.getDate() + 1);
+                    const calc_end = new Date(row.unassigned_at);
+
+                    // Normalize dates to ignore time
+                    const startObj = new Date(rental_start.getFullYear(), rental_start.getMonth(), rental_start.getDate());
+                    const endObj = new Date(calc_end.getFullYear(), calc_end.getMonth(), calc_end.getDate());
+
+                    if (endObj >= startObj) {
+                        const diffTime = endObj - startObj;
+                        const billable_days = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+                        raw_rental = billable_days * daily_rate;
+                    } else {
+                        raw_rental = 0;
+                    }
+                }
+
                 const raw_deposit = finalDeposit;
                 const raw_damage = 0; // Skipping for now
                 
@@ -107,7 +132,7 @@ export function useAssignmentTracking() {
                     unassign_reason: row.unassign_reason || "-",
                     
                     // Fields to calculate later
-                    rental_amount: row.rental_amount !== null && row.rental_amount !== undefined ? `₹${row.rental_amount}` : "₹0",
+                    rental_amount: `₹${raw_rental}`,
                     raw_rental_amount: raw_rental,
                     rent_received: `₹${totalRentReceived}`,
                     rent_received_qr: `₹${totalRentQR}`,

@@ -109,11 +109,14 @@ export default function PdiTicketModal({ open, onClose, pdiRequest, engineers, o
                 if (assignErr) throw assignErr;
             }
 
-            // 3. Update bikes.status
+            // 3. Update bikes.status and station_id
             const bikeStatus = pdiAction === "Under Repair" ? "under_repair" : "ready_to_deploy";
             const { error: bikeErr } = await supabase
                 .from("bikes")
-                .update({ status: bikeStatus })
+                .update({ 
+                    status: bikeStatus,
+                    station_id: pdiRequest.station_id 
+                })
                 .eq("id", pdiRequest.bike_id);
 
             if (bikeErr) throw bikeErr;

@@ -12,6 +12,7 @@ import AddDepositModal from "../../components/rider/AddDepositModal";
 export default function AssignmentTrackingPage({ session }) {
     const { assignments, loading, error, refetchAssignments } = useAssignmentTracking();
     const [searchTerm, setSearchTerm] = useState("");
+    const [statusFilter, setStatusFilter] = useState("All");
 
     // Modal state
     const [showAddRentModal, setShowAddRentModal] = useState(false);
@@ -25,6 +26,12 @@ export default function AssignmentTrackingPage({ session }) {
 
     // Filter assignments
     const filteredAssignments = assignments.filter((assignment) => {
+        // Status filter
+        if (statusFilter !== "All" && assignment.status !== statusFilter) {
+            return false;
+        }
+
+        // Search text filter
         if (!searchTerm) return true;
         const search = searchTerm.toLowerCase();
         return (
@@ -64,8 +71,8 @@ export default function AssignmentTrackingPage({ session }) {
                     </div>
                 </div>
 
-                {/* Search Bar */}
-                <div className="mb-6 shrink-0">
+                {/* Search Bar & Filters */}
+                <div className="mb-6 shrink-0 flex flex-col md:flex-row gap-4 items-center">
                     <input
                         type="text"
                         placeholder="🔍 Search by Name, Aadhar, Phone, or Vehicle No"
@@ -73,6 +80,19 @@ export default function AssignmentTrackingPage({ session }) {
                         onChange={(e) => setSearchTerm(e.target.value)}
                         className="w-full max-w-md px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
+                    
+                    <div className="flex items-center gap-2">
+                        <span className="text-sm font-semibold text-gray-700">Status:</span>
+                        <select
+                            value={statusFilter}
+                            onChange={(e) => setStatusFilter(e.target.value)}
+                            className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                        >
+                            <option value="All">All</option>
+                            <option value="Active">Active</option>
+                            <option value="Inactive">Inactive</option>
+                        </select>
+                    </div>
                 </div>
 
                 {/* Table */}
@@ -97,7 +117,7 @@ export default function AssignmentTrackingPage({ session }) {
                                         <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 w-[120px]">Client ID</th>
                                         <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 w-[150px]">Vehicle No.</th>
                                         <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 w-[150px]">Battery Mode</th>
-                                        <th className="px-4 py-3 text-center text-sm font-semibold text-blue-600 w-[150px]">Status(Active/Inactive)</th>
+                                        <th className="px-4 py-3 text-center text-sm font-semibold text-blue-600 w-[150px]">Status</th>
                                         <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 w-[120px]">TL</th>
                                         <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 w-[100px]">Deposit</th>
                                         <th className="px-4 py-3 text-center text-sm font-semibold text-blue-600 w-[150px]">Rental First Date</th>

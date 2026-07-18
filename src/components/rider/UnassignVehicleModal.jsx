@@ -6,6 +6,7 @@ export default function UnassignVehicleModal({ open, onClose, onSuccess, assignm
         unassigned_at: new Date().toISOString().split("T")[0],
         unassign_reason: "Rental not affordable",
         return_charger_code: "",
+        return_battery_code: "",
         damage_amount: "",
         vehicle_condition: "",
     });
@@ -95,6 +96,7 @@ export default function UnassignVehicleModal({ open, onClose, onSuccess, assignm
                     unassigned_at: formData.unassigned_at,
                     unassign_reason: formData.unassign_reason,
                     return_charger_code: formData.return_charger_code,
+                    return_battery_code: formData.return_battery_code,
                     damage_amount: parseFloat(formData.damage_amount) || 0,
                     vehicle_condition: formData.vehicle_condition,
                 })
@@ -120,6 +122,7 @@ export default function UnassignVehicleModal({ open, onClose, onSuccess, assignm
             unassigned_at: new Date().toISOString().split("T")[0],
             unassign_reason: "Rental not affordable",
             return_charger_code: "",
+            return_battery_code: "",
             damage_amount: "",
             vehicle_condition: "",
         });
@@ -213,17 +216,31 @@ export default function UnassignVehicleModal({ open, onClose, onSuccess, assignm
                         </select>
                     </div>
 
-                    <div>
-                        <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1.5">
-                            Return Charger Code
-                        </label>
-                        <input
-                            type="text"
-                            value={formData.return_charger_code}
-                            onChange={(e) => setFormData({ ...formData, return_charger_code: e.target.value })}
-                            placeholder="Enter code"
-                            className="w-full border border-gray-200 rounded-2xl px-4 py-2 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-red-500 text-sm"
-                        />
+                    <div className="grid grid-cols-2 gap-3">
+                        <div>
+                            <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1.5">
+                                Return Charger Code
+                            </label>
+                            <input
+                                type="text"
+                                value={formData.return_charger_code}
+                                onChange={(e) => setFormData({ ...formData, return_charger_code: e.target.value })}
+                                placeholder="Enter code"
+                                className="w-full border border-gray-200 rounded-2xl px-4 py-2 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-red-500 text-sm"
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1.5">
+                                Return Battery Code
+                            </label>
+                            <input
+                                type="text"
+                                value={formData.return_battery_code}
+                                onChange={(e) => setFormData({ ...formData, return_battery_code: e.target.value })}
+                                placeholder="Enter code"
+                                className="w-full border border-gray-200 rounded-2xl px-4 py-2 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-red-500 text-sm"
+                            />
+                        </div>
                     </div>
 
                     <div className="grid grid-cols-2 gap-3">
@@ -269,8 +286,9 @@ export default function UnassignVehicleModal({ open, onClose, onSuccess, assignm
                         </button>
                         <button
                             type="submit"
-                            disabled={submitting}
-                            className="px-8 py-2 rounded-2xl bg-red-600 text-white font-bold text-sm hover:bg-red-700 disabled:opacity-50 shadow-lg shadow-red-500/30 transition-all flex items-center gap-2"
+                            disabled={submitting || pdiStatus !== "completed"}
+                            title={pdiStatus !== "completed" ? "Complete PDI first" : ""}
+                            className="px-8 py-2 rounded-2xl bg-red-600 text-white font-bold text-sm hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-red-500/30 transition-all flex items-center gap-2"
                         >
                             {submitting ? "Processing..." : "Confirm Unassign"}
                         </button>
