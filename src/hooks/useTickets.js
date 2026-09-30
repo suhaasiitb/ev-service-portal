@@ -23,7 +23,8 @@ export function useTickets() {
         reported_at,
         closed_at,
         cost_charged,
-        engineers:closed_by ( id, name )
+        engineers:closed_by ( id, name ),
+        customers ( full_name, phone_number )
       `)
       .order("reported_at", { ascending: false });
 

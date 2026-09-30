@@ -5,6 +5,7 @@ import RiderDashboardPage from "./rider/RiderDashboardPage";
 import RiderManagementPage from "./rider/RiderManagementPage";
 import VehicleManagementPage from "./rider/VehicleManagementPage";
 import AssignmentTrackingPage from "./rider/AssignmentTrackingPage";
+import TechnicianManagementPage from "./rider/TechnicianManagementPage";
 
 export default function RiderManagementWrapper() {
     const [session, setSession] = useState(null);
@@ -61,6 +62,10 @@ export default function RiderManagementWrapper() {
             <Route
                 path="/assignment-tracking"
                 element={<AssignmentTrackingPage session={session} />}
+            />
+            <Route
+                path="/technician-management"
+                element={<TechnicianManagementPage session={session} />}
             />
         </Routes>
     );

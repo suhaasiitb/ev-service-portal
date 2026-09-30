@@ -4,6 +4,7 @@ import RiderSidebar from "../../components/rider/RiderSidebar";
 import StatusBadge from "../../components/common/StatusBadge";
 import AssignVehicleModal from "../../components/rider/AssignVehicleModal";
 import UnassignVehicleModal from "../../components/rider/UnassignVehicleModal";
+import ChangeStationModal from "../../components/rider/ChangeStationModal";
 import { useVehicles } from "../../hooks/useVehicles";
 import { useTeamLeads } from "../../hooks/useTeamLeads";
 import { useClients } from "../../hooks/useClients";
@@ -17,6 +18,7 @@ export default function VehicleManagementPage({ session }) {
     const [searchTerm, setSearchTerm] = useState("");
     const [showAssignModal, setShowAssignModal] = useState(false);
     const [showUnassignModal, setShowUnassignModal] = useState(false);
+    const [showChangeStationModal, setShowChangeStationModal] = useState(false);
     const [selectedVehicle, setSelectedVehicle] = useState(null);
     const [activeMenuId, setActiveMenuId] = useState(null);
     const [submittingPdi, setSubmittingPdi] = useState(null); // stores bike_id being processed
@@ -144,6 +146,9 @@ export default function VehicleManagementPage({ session }) {
                                         Battery No
                                     </th>
                                     <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">
+                                        Station
+                                    </th>
+                                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">
                                         Status
                                     </th>
                                     <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">
@@ -168,6 +173,9 @@ export default function VehicleManagementPage({ session }) {
                                         </td>
                                         <td className="px-4 py-3 text-sm text-gray-600">
                                             {vehicle.battery_code}
+                                        </td>
+                                        <td className="px-4 py-3 text-sm text-gray-900 font-medium">
+                                            {stations.find(s => s.id === vehicle.station_id)?.name || "Unassigned"}
                                         </td>
                                         <td className="px-4 py-3">
                                             <StatusBadge status={vehicle.assignment_status} />
@@ -206,18 +214,22 @@ export default function VehicleManagementPage({ session }) {
                                                 <div className="absolute right-full mr-2 top-1/2 -translate-y-1/2 bg-white border border-gray-100 shadow-xl rounded-2xl py-2 w-48 z-10 animate-in fade-in slide-in-from-right-2 duration-200">
                                                     {vehicle.assignment_status === "idle" && (
                                                         <button
-                                                            onClick={() => handleRaisePdi(vehicle)}
-                                                            disabled={submittingPdi === vehicle.id}
-                                                            className="w-full px-4 py-2.5 text-left text-sm font-bold text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                                                            onClick={() => vehicle.has_pending_pdi ? null : handleRaisePdi(vehicle)}
+                                                            disabled={submittingPdi === vehicle.id || vehicle.has_pending_pdi}
+                                                            className={`w-full px-4 py-2.5 text-left text-sm font-bold flex items-center gap-2 ${vehicle.has_pending_pdi ? "text-gray-400 cursor-not-allowed hover:bg-white" : "text-gray-700 hover:bg-gray-50"}`}
                                                         >
-                                                            📋 {submittingPdi === vehicle.id ? "Sending..." : "Send for PDI"}
+                                                            📋 {submittingPdi === vehicle.id ? "Sending..." : vehicle.has_pending_pdi ? "PDI Raised" : "Send for PDI"}
                                                         </button>
                                                     )}
                                                     <button
-                                                        onClick={() => { /* Placeholder for other actions like edit bike */ setActiveMenuId(null); }}
-                                                        className="w-full px-4 py-2.5 text-left text-sm font-bold text-gray-400 hover:bg-gray-50 flex items-center gap-2 cursor-not-allowed"
+                                                        onClick={() => {
+                                                            setSelectedVehicle(vehicle);
+                                                            setShowChangeStationModal(true);
+                                                            setActiveMenuId(null);
+                                                        }}
+                                                        className="w-full px-4 py-2.5 text-left text-sm font-bold text-gray-700 hover:bg-gray-50 flex items-center gap-2"
                                                     >
-                                                        ⚙️ Manage Vehicle
+                                                        ⚙️ Change Station
                                                     </button>
                                                 </div>
                                             )}
@@ -260,6 +272,17 @@ export default function VehicleManagementPage({ session }) {
                     bikeId={selectedVehicle?.id}
                     stationId={selectedVehicle?.station_id}
                     session={session}
+                />
+                {/* Change Station Modal */}
+                <ChangeStationModal
+                    open={showChangeStationModal}
+                    onClose={() => {
+                        setShowChangeStationModal(false);
+                        setSelectedVehicle(null);
+                    }}
+                    onSuccess={refetchVehicles}
+                    vehicle={selectedVehicle}
+                    stations={stations}
                 />
             </div>
         </div>

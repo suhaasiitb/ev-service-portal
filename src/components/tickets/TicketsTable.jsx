@@ -70,6 +70,7 @@ export default function TicketsTable({
             <thead className="bg-slate-900/80 text-slate-300 sticky top-0">
               <tr>
                 <th className="px-3 py-2 text-left">Bike</th>
+                <th className="px-3 py-2 text-left">Customer</th>
                 <th className="px-3 py-2 text-left">Issue</th>
                 <th className="px-3 py-2 text-left">Status</th>
                 <th className="px-3 py-2 text-left">Timeline</th>
@@ -94,6 +95,16 @@ export default function TicketsTable({
                   >
                     <td className="px-3 py-2 whitespace-nowrap">
                       {t.bike_number_text}
+                    </td>
+                    <td className="px-3 py-2 whitespace-nowrap text-xs text-slate-300">
+                      {t.customers ? (
+                        <>
+                          <div className="font-semibold text-slate-200">{t.customers.full_name}</div>
+                          <div>{t.customers.phone_number}</div>
+                        </>
+                      ) : (
+                        <span className="text-slate-500 italic">Unknown</span>
+                      )}
                     </td>
                     <td className="px-3 py-2 max-w-[260px] truncate">
                       {t.issue_description}
@@ -140,7 +151,7 @@ export default function TicketsTable({
               {!loading && tickets.length === 0 && (
                 <tr>
                   <td
-                    colSpan={5}
+                    colSpan={6}
                     className="px-3 py-4 text-center text-slate-500 text-xs"
                   >
                     No tickets for this filter.

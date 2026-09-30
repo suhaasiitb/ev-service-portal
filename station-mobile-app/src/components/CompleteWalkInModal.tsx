@@ -1,0 +1,498 @@
+import React, { useState, useEffect, useRef } from "react";
+import {
+  View,
+  Text,
+  Modal,
+  TextInput,
+  TouchableOpacity,
+  ScrollView,
+  ActivityIndicator,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+} from "react-native";
+import {
+  X,
+  Plus,
+  Trash2,
+  CheckCircle2,
+  QrCode,
+  Clock,
+} from "lucide-react-native";
+import { supabase } from "../lib/supabase";
+import { Part } from "../hooks/usePartsCatalog";
+import ScannerModal from "./ScannerModal";
+import SearchablePartSelectModal from "./SearchablePartSelectModal";
+import { useUserSession } from "../hooks/useUserSession";
+import { useActiveJob } from "../hooks/useActiveJob";
+
+type Props = {
+  visible: boolean;
+  onClose: () => void;
+  walkinId: string | null;
+  bikeNumber: string;
+  partsCatalog: Part[];
+  onSuccess: () => void;
+};
+
+export default function CompleteWalkInModal({
+  visible,
+  onClose,
+  walkinId,
+  bikeNumber,
+  partsCatalog,
+  onSuccess,
+}: Props) {
+  const { userProfile } = useUserSession();
+  const { activeJob, completeActiveJob, refetchActiveJob } = useActiveJob();
+
+  const [issue, setIssue] = useState("");
+  const [cost, setCost] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [durationString, setDurationString] = useState("");
+
+  const scrollViewRef = useRef<ScrollView>(null);
+
+  const handleInputFocus = () => {
+    setTimeout(() => {
+      scrollViewRef.current?.scrollToEnd({ animated: true });
+    }, 100);
+  };
+
+  // parts used logic
+  const [partsUsed, setPartsUsed] = useState<
+    { part_id: string; quantity: string }[]
+  >([{ part_id: "", quantity: "1" }]);
+
+  // Modals state
+  const [activePartIndex, setActivePartIndex] = useState<number | null>(null);
+  const [showSearchModal, setShowSearchModal] = useState(false);
+  const [showScannerModal, setShowScannerModal] = useState(false);
+
+  useEffect(() => {
+    if (visible && activeJob && walkinId) {
+      const start = new Date(activeJob.started_at);
+      const end = new Date();
+      const diffMs = end.getTime() - start.getTime();
+
+      const diffHrs = Math.floor(diffMs / (1000 * 60 * 60));
+      const diffMins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+
+      let duration = "";
+      if (diffHrs > 0) duration += `${diffHrs} hour${diffHrs > 1 ? "s" : ""} `;
+      duration += `${diffMins} min${diffMins > 1 ? "s" : ""}`;
+
+      setDurationString(duration.trim() || "Just started");
+    }
+  }, [visible, activeJob, walkinId]);
+
+  const handleAddPartRow = () => {
+    setPartsUsed([...partsUsed, { part_id: "", quantity: "1" }]);
+  };
+
+  const handleRemovePartRow = (index: number) => {
+    const updated = partsUsed.filter((_, i) => i !== index);
+    setPartsUsed(updated);
+  };
+
+  const updatePartRow = (
+    index: number,
+    field: "part_id" | "quantity",
+    value: string,
+  ) => {
+    const updated = [...partsUsed];
+    updated[index][field] = value;
+    setPartsUsed(updated);
+  };
+
+  const handleScanResult = (scannedSku: string) => {
+    setShowScannerModal(false);
+    if (activePartIndex === null) return;
+
+    const match = partsCatalog.find(
+      (p) => p.sku?.toLowerCase() === scannedSku.toLowerCase(),
+    );
+    if (match) {
+      updatePartRow(activePartIndex, "part_id", match.id);
+    } else {
+      Alert.alert("Part Not Found", `No part found for SKU: ${scannedSku}`);
+    }
+    setActivePartIndex(null);
+  };
+
+  const getPartName = (partId: string) => {
+    return (
+      partsCatalog.find((p) => p.id === partId)?.part_name || "Select Part..."
+    );
+  };
+
+  const handleSubmit = async () => {
+    if (!walkinId) return;
+
+    setLoading(true);
+    try {
+      // 1. Update walk-in record
+      const { data: updatedWalkins, error: wErr } = await supabase
+        .from("walkins")
+        .update({
+          issue_description: issue.trim(),
+          cost_charged: parseFloat(cost || "0"),
+          status: "closed",
+          completed_at: new Date().toISOString(),
+        })
+        .eq("id", walkinId)
+        .select();
+
+      if (wErr) throw new Error(`Failed to update walk-in: ${wErr.message}`);
+      if (!updatedWalkins || updatedWalkins.length === 0) {
+        throw new Error(
+          "Update failed. Check if RLS UPDATE policy is missing on walkins table.",
+        );
+      }
+
+      // 1.5 Update Rider Assignment if active
+      if (updatedWalkins[0].bike_id) {
+        const { data: assignmentData } = await supabase
+          .from("rider_bike_assignments")
+          .select("id, damage_amount, damage_parts")
+          .eq("bike_id", updatedWalkins[0].bike_id)
+          .is("unassigned_at", null)
+          .single();
+
+        if (assignmentData) {
+          const costFloat = parseFloat(cost || "0");
+          if (costFloat > 0 || partsUsed.some((p) => p.part_id)) {
+            const currentDamage = parseFloat(
+              assignmentData.damage_amount || "0",
+            );
+            const newDamage = currentDamage + costFloat;
+
+            let newDamageParts = assignmentData.damage_parts || "";
+            const partNames = partsUsed
+              .filter((p) => p.part_id)
+              .map(
+                (p) =>
+                  `${partsCatalog.find((c) => c.id === p.part_id)?.part_name || "Unknown Part"} (x${p.quantity || 1})`,
+              )
+              .join(", ");
+
+            if (partNames || costFloat > 0) {
+              const dateStr = new Date().toLocaleDateString("en-GB");
+              const details = partNames || issue.trim() || "Walk-In Repair";
+              const costText = costFloat > 0 ? ` - ₹${costFloat}` : "";
+              const entry = `[${dateStr}] Walkin: ${details}${costText}`;
+              newDamageParts = newDamageParts
+                ? `${newDamageParts}\n${entry}`
+                : entry;
+            }
+
+            const { data: updatedAssignments, error: assignmentUpdateErr } =
+              await supabase
+                .from("rider_bike_assignments")
+                .update({
+                  damage_amount: newDamage,
+                  damage_parts: newDamageParts,
+                })
+                .eq("id", assignmentData.id)
+                .select();
+
+            if (assignmentUpdateErr)
+              throw new Error(
+                `Failed to update rider assignment: ${assignmentUpdateErr.message}`,
+              );
+            if (!updatedAssignments || updatedAssignments.length === 0) {
+              throw new Error(
+                "Failed to update rider bike assignment. You may be missing the UPDATE policy for the 'rider_bike_assignments' table.",
+              );
+            }
+          }
+        }
+      }
+
+      // 2. Insert Parts and Update Inventory
+      for (const p of partsUsed) {
+        if (!p.part_id) continue;
+        const qty = parseInt(p.quantity, 10) || 1;
+
+        // A. Insert into walkin_parts
+        const { error: pErr } = await supabase.from("walkin_parts").insert([
+          {
+            walkin_id: walkinId,
+            part_id: p.part_id,
+            quantity: qty,
+          },
+        ]);
+        if (pErr) throw new Error(`Failed to log part: ${pErr.message}`);
+
+        // B. Log Inventory Transaction (DB trigger handles master update)
+        if (userProfile?.station_id) {
+          const { data: inv, error: invErr } = await supabase
+            .from("inventory_master")
+            .select("id, quantity")
+            .eq("part_id", p.part_id)
+            .eq("station_id", userProfile.station_id)
+            .maybeSingle();
+
+          if (!invErr && inv) {
+            const currentQty = inv.quantity || 0;
+            const newQty = currentQty - qty;
+
+            // Log transaction (DB trigger automatically deducts from inventory_master)
+            await supabase.from("inventory_transactions").insert([
+              {
+                station_id: userProfile.station_id,
+                part_id: p.part_id,
+                delta: -qty,
+                reason: "Walk-in part usage",
+                ref_id: walkinId,
+                performed_by: userProfile.id,
+                performed_at: new Date().toISOString(),
+                balance_after: newQty,
+              },
+            ]);
+          }
+        }
+      }
+
+      // 3. Complete Active Job
+      await completeActiveJob();
+
+      Alert.alert("Success", "Walk-in job completed successfully!");
+
+      // Reset form
+      setIssue("");
+      setCost("");
+      setPartsUsed([{ part_id: "", quantity: "1" }]);
+
+      onSuccess();
+    } catch (err: any) {
+      Alert.alert("Error", err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (!walkinId) return null;
+
+  return (
+    <Modal
+      visible={visible}
+      animationType="slide"
+      transparent={true}
+      onRequestClose={onClose}
+      statusBarTranslucent={true}
+    >
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        className="flex-1 justify-end bg-black/40"
+      >
+        <View className="bg-white rounded-t-[32px] h-[85%] shadow-2xl overflow-hidden">
+          {/* Header */}
+          <View className="flex-row justify-between items-center p-6 border-b border-slate-100">
+            <Text className="text-2xl font-bold text-slate-900">
+              Complete Walk-In
+            </Text>
+            <TouchableOpacity
+              onPress={onClose}
+              className="bg-slate-100 p-2 rounded-full"
+            >
+              <X size={20} color="#64748b" />
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView
+            ref={scrollViewRef}
+            className="p-6"
+            contentContainerStyle={{ paddingBottom: 220 }}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
+            {/* Read-Only Context */}
+            <View className="bg-slate-50 p-4 rounded-2xl mb-6 border border-slate-100">
+              <View className="flex-row justify-between mb-2">
+                <Text className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                  Bike No
+                </Text>
+                <Text className="text-sm font-bold text-slate-900">
+                  {bikeNumber}
+                </Text>
+              </View>
+              <View className="flex-row justify-between">
+                <Text className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                  Assigned To
+                </Text>
+                <Text className="text-sm font-bold text-slate-900">
+                  {userProfile?.name || "You"}
+                </Text>
+              </View>
+            </View>
+
+            <View className="mb-5">
+              <Text className="text-sm font-semibold text-slate-700 mb-2">
+                Cost Charged (₹)
+              </Text>
+              <TextInput
+                className="bg-slate-50 border border-slate-200 rounded-2xl px-4 h-14 text-base text-slate-900"
+                placeholder="0.00"
+                placeholderTextColor="#94a3b8"
+                value={cost}
+                onChangeText={setCost}
+                keyboardType="numeric"
+                onFocus={handleInputFocus}
+              />
+            </View>
+
+            <View className="mb-6">
+              <View className="flex-row justify-between items-center mb-3">
+                <Text className="text-sm font-semibold text-slate-700">
+                  Parts Used
+                </Text>
+                <TouchableOpacity
+                  onPress={handleAddPartRow}
+                  className="flex-row items-center bg-blue-50 px-3 py-1.5 rounded-full"
+                >
+                  <Plus size={14} color="#3b82f6" />
+                  <Text className="text-blue-600 font-medium text-xs ml-1">
+                    Add Part
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              {partsUsed.map((row, index) => (
+                <View
+                  key={index}
+                  className="flex-row items-center gap-2 mb-3 bg-slate-50 p-3 rounded-2xl border border-slate-200"
+                >
+                  <View className="flex-1 pr-2 border-r border-slate-200">
+                    <Text className="text-xs text-slate-500 mb-1 font-medium">
+                      Part Name
+                    </Text>
+                    <TouchableOpacity
+                      className="bg-white border border-slate-200 rounded-xl px-3 h-11 justify-center"
+                      onPress={() => {
+                        setActivePartIndex(index);
+                        setShowSearchModal(true);
+                      }}
+                    >
+                      <Text
+                        className={`text-sm ${row.part_id ? "text-slate-900 font-medium" : "text-slate-400"}`}
+                      >
+                        {getPartName(row.part_id)}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+
+                  <View className="w-14">
+                    <Text className="text-xs text-slate-500 mb-1 font-medium text-center">
+                      Qty
+                    </Text>
+                    <TextInput
+                      className="bg-white border border-slate-200 rounded-xl h-11 text-center text-sm font-semibold text-slate-900"
+                      value={row.quantity}
+                      onChangeText={(val) =>
+                        updatePartRow(index, "quantity", val)
+                      }
+                      keyboardType="numeric"
+                      onFocus={handleInputFocus}
+                    />
+                  </View>
+
+                  <View className="flex-row items-center ml-1 mt-5">
+                    <TouchableOpacity
+                      className="bg-emerald-100 p-2.5 rounded-xl mr-2"
+                      onPress={() => {
+                        setActivePartIndex(index);
+                        setShowScannerModal(true);
+                      }}
+                    >
+                      <QrCode size={18} color="#10b981" />
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      onPress={() => handleRemovePartRow(index)}
+                      className="p-2"
+                    >
+                      <Trash2 size={20} color="#ef4444" />
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              ))}
+            </View>
+
+            <View className="mb-6">
+              <Text className="text-sm font-semibold text-slate-700 mb-2">
+                Issue Description (Optional)
+              </Text>
+              <TextInput
+                className="bg-slate-50 border border-slate-200 rounded-2xl px-4 py-4 text-base text-slate-900"
+                placeholder="Describe the problem..."
+                placeholderTextColor="#94a3b8"
+                value={issue}
+                onChangeText={setIssue}
+                multiline
+                numberOfLines={3}
+                textAlignVertical="top"
+                onFocus={handleInputFocus}
+              />
+            </View>
+
+            {/* Service Duration display */}
+            <View className="flex-row items-center justify-center p-4 bg-emerald-50 rounded-2xl border border-emerald-100 mb-4">
+              <Clock size={18} color="#10b981" />
+              <Text className="text-emerald-700 font-medium ml-2">
+                Total Service Time:{" "}
+                <Text className="font-bold">{durationString}</Text>
+              </Text>
+            </View>
+          </ScrollView>
+
+          {/* Footer Action */}
+          <View className="p-6 border-t border-slate-100 bg-white">
+            <TouchableOpacity
+              className={`bg-blue-600 h-14 rounded-2xl justify-center items-center shadow-lg shadow-blue-500/30 flex-row ${loading ? "opacity-70" : ""}`}
+              onPress={handleSubmit}
+              disabled={loading}
+            >
+              <View style={{ marginRight: 8 }}>
+                {loading ? (
+                  <ActivityIndicator color="white" />
+                ) : (
+                  <CheckCircle2 size={20} color="white" />
+                )}
+              </View>
+              <Text className="text-white font-bold text-lg tracking-wide">
+                Complete Job
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </KeyboardAvoidingView>
+
+      {/* Modals */}
+      <SearchablePartSelectModal
+        visible={showSearchModal}
+        onClose={() => {
+          setShowSearchModal(false);
+          setActivePartIndex(null);
+        }}
+        parts={partsCatalog}
+        onSelect={(part) => {
+          if (activePartIndex !== null) {
+            updatePartRow(activePartIndex, "part_id", part.id);
+          }
+          setShowSearchModal(false);
+          setActivePartIndex(null);
+        }}
+      />
+
+      <ScannerModal
+        visible={showScannerModal}
+        onClose={() => {
+          setShowScannerModal(false);
+          setActivePartIndex(null);
+        }}
+        onScan={handleScanResult}
+      />
+    </Modal>
+  );
+}

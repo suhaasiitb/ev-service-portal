@@ -10,6 +10,7 @@ export default function RiderSidebar() {
         { path: "/rider-dashboard", label: "Dashboard", icon: "📊" },
         { path: "/rider-dashboard/rider-management", label: "Rider Management", icon: "👤" },
         { path: "/rider-dashboard/vehicle-management", label: "Vehicle Management", icon: "🏍️" },
+        { path: "/rider-dashboard/technician-management", label: "Technician Management", icon: "👨‍🔧" },
         { path: "/rider-dashboard/assignment-tracking", label: "Assignment Tracking", icon: "📋" },
     ];
 

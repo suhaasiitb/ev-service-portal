@@ -22,6 +22,10 @@ export function useVehicles() {
                         rider_id,
                         unassigned_at,
                         riders(name)
+                    ),
+                    pdi_requests(
+                        id,
+                        status
                     )
                 `)
                 .order("bike_number")
@@ -33,6 +37,7 @@ export function useVehicles() {
             const formattedVehicles = (data || []).map(vehicle => {
                 // Get the most recent assignment (assuming no status column)
                 const activeAssignment = vehicle.assignments?.[0];
+                const hasPendingPdi = vehicle.pdi_requests?.some(pdi => pdi.status === 'pending') || false;
 
                 return {
                     ...vehicle,
@@ -41,6 +46,7 @@ export function useVehicles() {
                     assignment_status: (activeAssignment && !activeAssignment.unassigned_at) ? "active" : "idle", // Check if active assignment is actually unassigned
                     battery_code: activeAssignment?.battery_code || "-",
                     assignee_name: activeAssignment?.riders?.name || null,
+                    has_pending_pdi: hasPendingPdi,
                 };
             });
 
