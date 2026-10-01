@@ -5,44 +5,63 @@ import {
   TextInput,
   TouchableOpacity,
   ActivityIndicator,
-  KeyboardAvoidingView,
   Platform,
   Alert,
   ScrollView,
   Keyboard,
   TouchableWithoutFeedback,
+  type KeyboardEvent,
 } from 'react-native';
 import { supabase } from '../lib/supabase';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
   const [isKeyboardVisible, setKeyboardVisible] = useState(false);
 
+  const insets = useSafeAreaInsets();
   const scrollViewRef = useRef<ScrollView>(null);
   const passwordInputRef = useRef<TextInput>(null);
 
   useEffect(() => {
-    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
-    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const onKeyboardShow = (e: KeyboardEvent) => {
+      const height = e?.endCoordinates?.height || 0;
+      if (height > 0) {
+        setKeyboardHeight(height);
+        setKeyboardVisible(true);
+      }
+    };
 
-    const showSub = Keyboard.addListener(showEvent, () => {
-      setKeyboardVisible(true);
-      setTimeout(() => {
-        scrollViewRef.current?.scrollToEnd({ animated: true });
-      }, 50);
-    });
-
-    const hideSub = Keyboard.addListener(hideEvent, () => {
+    const onKeyboardHide = () => {
+      setKeyboardHeight(0);
       setKeyboardVisible(false);
-    });
+    };
+
+    const showSub = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      onKeyboardShow
+    );
+    const hideSub = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+      onKeyboardHide
+    );
+
+    let androidShowSub: any;
+    let androidHideSub: any;
+    if (Platform.OS === 'android') {
+      androidShowSub = Keyboard.addListener('keyboardWillShow', onKeyboardShow);
+      androidHideSub = Keyboard.addListener('keyboardWillHide', onKeyboardHide);
+    }
 
     return () => {
       showSub.remove();
       hideSub.remove();
+      androidShowSub?.remove();
+      androidHideSub?.remove();
     };
   }, []);
 
@@ -69,17 +88,16 @@ export default function LoginScreen() {
   const handleFocus = () => {
     setTimeout(() => {
       scrollViewRef.current?.scrollToEnd({ animated: true });
-    }, 50);
+    }, 100);
   };
 
+  const bottomOffset = keyboardHeight > 0 ? keyboardHeight : Math.max(insets.bottom, 16);
+
   return (
-    <SafeAreaView className="flex-1 bg-slate-900">
+    <SafeAreaView edges={['top', 'left', 'right']} style={{ flex: 1, backgroundColor: '#0f172a' }}>
       <StatusBar style="light" />
       <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-          className="flex-1"
-        >
+        <View style={{ flex: 1, paddingBottom: bottomOffset }}>
           <ScrollView
             ref={scrollViewRef}
             contentContainerStyle={{ flexGrow: 1 }}
@@ -89,9 +107,22 @@ export default function LoginScreen() {
           >
             {/* Hero / Header Section */}
             <View
-              className={`items-center justify-center px-8 transition-all ${
-                isKeyboardVisible ? 'py-4' : 'flex-1 py-10'
-              }`}
+              style={
+                isKeyboardVisible
+                  ? {
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      paddingHorizontal: 32,
+                      paddingVertical: 12,
+                    }
+                  : {
+                      flex: 1,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      paddingHorizontal: 32,
+                      paddingVertical: 40,
+                    }
+              }
             >
               {!isKeyboardVisible && (
                 <View className="w-20 h-20 bg-blue-500 rounded-2xl items-center justify-center mb-6 shadow-lg shadow-blue-500/40">
@@ -116,16 +147,18 @@ export default function LoginScreen() {
 
             {/* Login Card Form */}
             <View
-              className={`bg-white rounded-t-[32px] px-8 shadow-2xl shadow-black/10 ${
-                isKeyboardVisible ? 'pt-6 pb-8' : 'pt-10 pb-10'
-              }`}
+              className="bg-white rounded-t-[32px] px-8 shadow-2xl shadow-black/10"
+              style={{
+                paddingTop: isKeyboardVisible ? 20 : 36,
+                paddingBottom: isKeyboardVisible ? 24 : 36,
+              }}
             >
               <Text className="text-2xl font-bold text-slate-900 mb-1">
                 Technician Login
               </Text>
               <Text
                 className={`text-slate-500 ${
-                  isKeyboardVisible ? 'text-xs mb-4' : 'text-[15px] mb-6'
+                  isKeyboardVisible ? 'text-xs mb-3' : 'text-[15px] mb-6'
                 }`}
               >
                 Enter your credentials
@@ -180,7 +213,7 @@ export default function LoginScreen() {
               </TouchableOpacity>
             </View>
           </ScrollView>
-        </KeyboardAvoidingView>
+        </View>
       </TouchableWithoutFeedback>
     </SafeAreaView>
   );

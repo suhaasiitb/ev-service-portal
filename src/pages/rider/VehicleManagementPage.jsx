@@ -139,12 +139,7 @@ export default function VehicleManagementPage({ session }) {
                                     <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">
                                         Model
                                     </th>
-                                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">
-                                        Reg No
-                                    </th>
-                                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">
-                                        Battery No
-                                    </th>
+
                                     <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">
                                         Station
                                     </th>
@@ -168,12 +163,7 @@ export default function VehicleManagementPage({ session }) {
                                         <td className="px-4 py-3 text-sm text-gray-600">
                                             {vehicle.model_name}
                                         </td>
-                                        <td className="px-4 py-3 text-sm text-gray-900">
-                                            {vehicle.bike_number}
-                                        </td>
-                                        <td className="px-4 py-3 text-sm text-gray-600">
-                                            {vehicle.battery_code}
-                                        </td>
+
                                         <td className="px-4 py-3 text-sm text-gray-900 font-medium">
                                             {stations.find(s => s.id === vehicle.station_id)?.name || "Unassigned"}
                                         </td>

@@ -49,7 +49,7 @@ export function useWalkins() {
 
       if (partError) {
         console.error("Error fetching walkin parts:", partError);
-        setWalkins(walkinData || []);
+        setWalkins((walkinData || []).map((w: any) => ({ ...w, parts_used: [] })));
         return;
       }
 
@@ -60,7 +60,7 @@ export function useWalkins() {
 
       if (catalogError) {
         console.error("Error fetching parts catalog:", catalogError);
-        setWalkins(walkinData || []);
+        setWalkins((walkinData || []).map((w: any) => ({ ...w, parts_used: [] })));
         return;
       }
 

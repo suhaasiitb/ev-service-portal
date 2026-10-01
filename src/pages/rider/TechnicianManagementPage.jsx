@@ -1,16 +1,23 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import RiderSidebar from "../../components/rider/RiderSidebar";
+import TechnicianRosterTab from "../../components/technician/TechnicianRosterTab";
 import PendingApprovalsTab from "../../components/technician/PendingApprovalsTab";
 import AttendanceHistoryTab from "../../components/technician/AttendanceHistoryTab";
 import TechnicianDetailsDrawer from "../../components/technician/TechnicianDetailsDrawer";
 import RejectAttendanceModal from "../../components/technician/RejectAttendanceModal";
 import { useTechnicianAttendance } from "../../hooks/useTechnicianAttendance";
+import { useTechnicians } from "../../hooks/useTechnicians";
 
 export default function TechnicianManagementPage({ session }) {
-    // For now, passing null to fetch all stations, or pass manager's station ID if applicable
-    const { attendance, pendingCount, loading, refetchAttendance, approveAttendance, disapproveAttendance } = useTechnicianAttendance(null);
-    const [activeTab, setActiveTab] = useState("pending"); // "pending" or "history"
+    // Attendance data & actions
+    const { attendance, pendingCount, loading: loadingAttendance, approveAttendance, disapproveAttendance } = useTechnicianAttendance(null);
     
+    // Technicians roster & station tagging data
+    const { technicians, stations, loading: loadingTechnicians, updatingId, updateTechnicianStation } = useTechnicians();
+
+    // Active Tab: 'roster' (Technicians & Tagged Stations), 'pending' (Pending Approvals), 'history' (Attendance History)
+    const [activeTab, setActiveTab] = useState("roster");
+
     // Modals & Drawers state
     const [selectedRecord, setSelectedRecord] = useState(null);
     const [drawerOpen, setDrawerOpen] = useState(false);
@@ -63,7 +70,7 @@ export default function TechnicianManagementPage({ session }) {
                 <div className="flex justify-between items-center mb-6">
                     <div>
                         <h1 className="text-3xl font-bold text-gray-900">Technician Management</h1>
-                        <p className="text-gray-600 mt-1">Manage shift tracking and attendance approvals</p>
+                        <p className="text-gray-600 mt-1">Manage technician station tagging, shift tracking, and attendance approvals</p>
                     </div>
                 </div>
 
@@ -90,46 +97,84 @@ export default function TechnicianManagementPage({ session }) {
                     </div>
                 </div>
 
-                {/* Tabs */}
+                {/* Tabs Header */}
                 <div className="flex border-b border-gray-200 mb-6 gap-6">
                     <button
+                        onClick={() => setActiveTab("roster")}
+                        className={`pb-4 text-sm font-bold flex items-center gap-2 border-b-2 transition-colors ${
+                            activeTab === "roster"
+                                ? "border-blue-600 text-blue-600"
+                                : "border-transparent text-gray-500 hover:text-gray-700"
+                        }`}
+                    >
+                        👨‍🔧 Technicians & Tagged Stations
+                        <span className="bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full text-xs">
+                            {technicians.length}
+                        </span>
+                    </button>
+                    <button
                         onClick={() => setActiveTab("pending")}
-                        className={`pb-4 text-sm font-bold flex items-center gap-2 border-b-2 transition-colors ${activeTab === "pending" ? "border-amber-500 text-amber-600" : "border-transparent text-gray-500 hover:text-gray-700"}`}
+                        className={`pb-4 text-sm font-bold flex items-center gap-2 border-b-2 transition-colors ${
+                            activeTab === "pending"
+                                ? "border-amber-500 text-amber-600"
+                                : "border-transparent text-gray-500 hover:text-gray-700"
+                        }`}
                     >
                         Pending Approvals Queue
                         {pendingCount > 0 && (
-                            <span className="bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full text-xs">{pendingCount}</span>
+                            <span className="bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full text-xs">
+                                {pendingCount}
+                            </span>
                         )}
                     </button>
                     <button
                         onClick={() => setActiveTab("history")}
-                        className={`pb-4 text-sm font-bold border-b-2 transition-colors ${activeTab === "history" ? "border-blue-600 text-blue-600" : "border-transparent text-gray-500 hover:text-gray-700"}`}
+                        className={`pb-4 text-sm font-bold border-b-2 transition-colors ${
+                            activeTab === "history"
+                                ? "border-blue-600 text-blue-600"
+                                : "border-transparent text-gray-500 hover:text-gray-700"
+                        }`}
                     >
-                        Attendance History & Roster
+                        Attendance History & Logs
                     </button>
                 </div>
 
-                {/* Main Content */}
-                {loading ? (
-                    <div className="text-center py-20 text-gray-500 font-medium">Loading attendance data...</div>
-                ) : (
-                    <div>
-                        {activeTab === "pending" && (
+                {/* Main Content Area */}
+                <div>
+                    {activeTab === "roster" && (
+                        <TechnicianRosterTab
+                            technicians={technicians}
+                            stations={stations}
+                            loading={loadingTechnicians}
+                            updatingId={updatingId}
+                            onUpdateStation={updateTechnicianStation}
+                        />
+                    )}
+
+                    {activeTab === "pending" && (
+                        loadingAttendance ? (
+                            <div className="text-center py-20 text-gray-500 font-medium">Loading attendance data...</div>
+                        ) : (
                             <PendingApprovalsTab 
                                 attendance={attendance} 
                                 onApprove={handleApprove}
                                 onReject={handleRejectClick}
                                 onViewDetails={openDrawer}
                             />
-                        )}
-                        {activeTab === "history" && (
+                        )
+                    )}
+
+                    {activeTab === "history" && (
+                        loadingAttendance ? (
+                            <div className="text-center py-20 text-gray-500 font-medium">Loading attendance data...</div>
+                        ) : (
                             <AttendanceHistoryTab 
                                 attendance={attendance}
                                 onViewDetails={openDrawer}
                             />
-                        )}
-                    </div>
-                )}
+                        )
+                    )}
+                </div>
             </div>
 
             {/* Modals & Drawers */}

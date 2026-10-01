@@ -134,7 +134,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   overlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     justifyContent: "space-between",
     paddingTop: 50,
     paddingBottom: 40,

@@ -8,7 +8,7 @@ export default function ActiveJobWidget({ onCompletePress, hideWhenIdle = false 
   const [duration, setDuration] = useState('');
 
   useEffect(() => {
-    let interval: NodeJS.Timeout;
+    let interval: ReturnType<typeof setInterval>;
     if (activeJob) {
       const updateTimer = () => {
         const start = new Date(activeJob.started_at);

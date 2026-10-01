@@ -2,7 +2,7 @@
   "expo": {
     "name": "station-mobile-app",
     "slug": "station-mobile-app",
-    "version": "1.0.3",
+    "version": "1.0.4",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "stationmobileapp",
@@ -16,7 +16,7 @@
       "bundleIdentifier": "com.urbanconnect.evtechnician"
     },
     "android": {
-      "versionCode": 4,
+      "versionCode": 5,
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon-foreground.png",

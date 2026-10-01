@@ -9,6 +9,7 @@ import {
   StyleSheet,
   Image,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import * as Location from "expo-location";
 import {
@@ -62,6 +63,8 @@ export default function LogAttendanceModal({
     useState<Location.PermissionStatus | null>(null);
 
   const [loading, setLoading] = useState(false);
+  const [takingPhoto, setTakingPhoto] = useState(false);
+  const [isCameraReady, setIsCameraReady] = useState(false);
   const [step, setStep] = useState<"verifying" | "camera" | "uploading">(
     "verifying",
   );
@@ -78,6 +81,8 @@ export default function LogAttendanceModal({
       setStep("verifying");
       setDistance(null);
       setCurrentLoc(null);
+      setIsCameraReady(false);
+      setTakingPhoto(false);
       verifyLocation();
     }
   }, [visible]);
@@ -140,16 +145,21 @@ export default function LogAttendanceModal({
     if (!cameraRef.current || !userProfile || !currentLoc || distance === null)
       return;
 
-    setLoading(true);
-    setStep("uploading");
-
     try {
+      setTakingPhoto(true);
+
       const photo = await cameraRef.current.takePictureAsync({
         quality: 0.5,
         base64: true,
       });
 
-      if (!photo.base64) throw new Error("Failed to capture image base64");
+      if (!photo || !photo.base64) {
+        throw new Error("Failed to capture image data");
+      }
+
+      // ONLY transition to uploading step once photo is safely captured
+      setStep("uploading");
+      setLoading(true);
 
       const fileName = `${userProfile.id}_${Date.now()}.jpg`;
       const filePath = `${new Date().toISOString().split("T")[0]}/${fileName}`;
@@ -231,8 +241,9 @@ export default function LogAttendanceModal({
       onSuccess();
     } catch (err: any) {
       Alert.alert("Error", err.message || "Failed to log attendance");
-      setStep("camera"); // let them retry
+      setStep("camera");
     } finally {
+      setTakingPhoto(false);
       setLoading(false);
     }
   };
@@ -246,22 +257,30 @@ export default function LogAttendanceModal({
       transparent={true}
       onRequestClose={onClose}
     >
-      <View className="flex-1 bg-black/90 justify-center">
-        {/* Header */}
-        <View className="absolute top-12 left-0 right-0 px-6 flex-row justify-between items-center z-50">
-          <Text className="text-white text-xl font-bold">
-            {attendanceState === "started" ||
-            attendanceState === "pending_approval"
-              ? "Log Out"
-              : "Start Shift"}
-          </Text>
-          <TouchableOpacity
-            onPress={onClose}
-            className="bg-white/20 p-2 rounded-full"
-          >
-            <X size={20} color="white" />
-          </TouchableOpacity>
-        </View>
+      <View
+        style={{
+          flex: 1,
+          backgroundColor: step === "camera" ? "#000000" : "rgba(0, 0, 0, 0.9)",
+          justifyContent: step === "camera" ? "flex-start" : "center",
+        }}
+      >
+        {/* Header (verifying & uploading steps) */}
+        {step !== "camera" && (
+          <View className="absolute top-12 left-0 right-0 px-6 flex-row justify-between items-center z-50">
+            <Text className="text-white text-xl font-bold">
+              {attendanceState === "started" ||
+              attendanceState === "pending_approval"
+                ? "Log Out"
+                : "Start Shift"}
+            </Text>
+            <TouchableOpacity
+              onPress={onClose}
+              className="bg-white/20 p-2 rounded-full"
+            >
+              <X size={20} color="white" />
+            </TouchableOpacity>
+          </View>
+        )}
 
         {step === "verifying" && (
           <View className="items-center px-6">
@@ -328,27 +347,102 @@ export default function LogAttendanceModal({
           </View>
         )}
 
-        {step === "camera" && camPermission?.granted && (
-          <View className="flex-1">
-            <CameraView
-              style={StyleSheet.absoluteFillObject}
-              facing="front"
-              ref={cameraRef}
-            />
-            <View className="absolute bottom-0 left-0 right-0 p-8 pb-12 items-center bg-black/50">
-              <Text className="text-white text-center font-medium mb-6">
-                Please take a clear selfie at the station.
+        {step === "camera" && (
+          !camPermission?.granted ? (
+            <View className="items-center px-6">
+              <CameraIcon size={48} color="#94a3b8" />
+              <Text className="text-white text-xl font-bold mt-4 text-center">
+                Camera Permission Required
+              </Text>
+              <Text className="text-slate-400 text-sm mt-2 text-center">
+                Please allow camera access to take your attendance selfie.
               </Text>
               <TouchableOpacity
-                className="w-20 h-20 rounded-full bg-white border-4 border-slate-300 justify-center items-center shadow-lg"
-                onPress={handleTakePicture}
+                className="bg-blue-600 px-6 py-3.5 rounded-xl mt-6"
+                onPress={requestCamPermission}
               >
-                <View className="w-16 h-16 rounded-full bg-white border-2 border-slate-900 justify-center items-center">
-                  <CameraIcon size={28} color="#0f172a" />
-                </View>
+                <Text className="text-white font-bold text-base">Grant Permission</Text>
               </TouchableOpacity>
             </View>
-          </View>
+          ) : (
+            <View style={[StyleSheet.absoluteFill, { backgroundColor: "#000000" }]}>
+              <CameraView
+                style={StyleSheet.absoluteFill}
+                facing="front"
+                mode="picture"
+                ref={cameraRef}
+                onCameraReady={() => setIsCameraReady(true)}
+              />
+
+              {/* Top Header Overlay */}
+              <SafeAreaView
+                edges={["top"]}
+                style={{
+                  position: "absolute",
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  zIndex: 20,
+                }}
+              >
+                <View className="px-6 py-4 flex-row justify-between items-center">
+                  <View className="bg-black/50 px-4 py-2 rounded-full">
+                    <Text className="text-white text-base font-bold">
+                      {attendanceState === "started" ||
+                      attendanceState === "pending_approval"
+                        ? "Log Out"
+                        : "Start Shift"}
+                    </Text>
+                  </View>
+                  <TouchableOpacity
+                    onPress={onClose}
+                    className="bg-black/50 p-2.5 rounded-full"
+                  >
+                    <X size={20} color="white" />
+                  </TouchableOpacity>
+                </View>
+              </SafeAreaView>
+
+              {/* Bottom Controls Overlay */}
+              <SafeAreaView
+                edges={["bottom"]}
+                style={{
+                  position: "absolute",
+                  bottom: 0,
+                  left: 0,
+                  right: 0,
+                  zIndex: 20,
+                }}
+              >
+                <View className="p-6 pb-10 items-center bg-black/60">
+                  <Text className="text-white text-center font-medium mb-6 text-sm">
+                    Please take a clear selfie at the station.
+                  </Text>
+                  <TouchableOpacity
+                    className={`w-20 h-20 rounded-full bg-white border-4 border-slate-300 justify-center items-center shadow-2xl ${
+                      takingPhoto || !isCameraReady ? "opacity-60" : ""
+                    }`}
+                    onPress={handleTakePicture}
+                    disabled={takingPhoto || !isCameraReady}
+                    activeOpacity={0.8}
+                  >
+                    {takingPhoto ? (
+                      <ActivityIndicator size="small" color="#0f172a" />
+                    ) : (
+                      <View className="w-16 h-16 rounded-full bg-white border-2 border-slate-900 justify-center items-center">
+                        <CameraIcon size={28} color="#0f172a" />
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                  {!isCameraReady && (
+                    <Text className="text-slate-400 text-xs mt-3">
+                      Initializing camera...
+                    </Text>
+                  )}
+                </View>
+              </SafeAreaView>
+            </View>
+          )
         )}
 
         {step === "uploading" && (
