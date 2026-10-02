@@ -1,10 +1,20 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { supabase } from "../../lib/supabaseClient";
 
 export default function RiderSidebar() {
     const location = useLocation();
     const [isCollapsed, setIsCollapsed] = useState(false);
+
+    // Auto collapse sidebar after 3 seconds of being expanded
+    useEffect(() => {
+        if (!isCollapsed) {
+            const timer = setTimeout(() => {
+                setIsCollapsed(true);
+            }, 3000);
+            return () => clearTimeout(timer);
+        }
+    }, [isCollapsed]);
 
     const navItems = [
         { path: "/rider-dashboard", label: "Dashboard", icon: "📊" },

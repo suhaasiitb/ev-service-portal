@@ -1,5 +1,23 @@
 import { useState } from "react";
 
+function getElapsedTime(startedAt) {
+    if (!startedAt) return "";
+    const start = new Date(startedAt);
+    const now = new Date();
+    const diffMs = now - start;
+
+    if (diffMs < 0) return "0m";
+
+    const diffMins = Math.floor(diffMs / (1000 * 60));
+    const hours = Math.floor(diffMins / 60);
+    const mins = diffMins % 60;
+
+    if (hours > 0) {
+        return `${hours}h ${mins}m`;
+    }
+    return `${mins}m`;
+}
+
 export default function TechnicianRosterTab({ technicians, stations, loading, updatingId, onUpdateStation }) {
     const [searchQuery, setSearchQuery] = useState("");
     const [stationFilter, setStationFilter] = useState("all");
@@ -82,7 +100,7 @@ export default function TechnicianRosterTab({ technicians, stations, loading, up
     return (
         <div className="space-y-6">
             {/* Quick Stats Bar */}
-            <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div className="bg-white border border-gray-200 rounded-xl p-4 flex items-center justify-between">
                     <div>
                         <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Total Technicians</div>
@@ -120,16 +138,6 @@ export default function TechnicianRosterTab({ technicians, stations, loading, up
                     </div>
                     <div className="w-10 h-10 rounded-lg bg-purple-100 text-purple-700 flex items-center justify-center font-bold text-lg">
                         ⚡
-                    </div>
-                </div>
-
-                <div className="bg-white border border-gray-200 rounded-xl p-4 flex items-center justify-between">
-                    <div>
-                        <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Assigned Station</div>
-                        <div className="text-2xl font-bold text-blue-600 mt-1">{assignedCount}</div>
-                    </div>
-                    <div className="w-10 h-10 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-lg">
-                        📍
                     </div>
                 </div>
             </div>
@@ -194,7 +202,6 @@ export default function TechnicianRosterTab({ technicians, stations, loading, up
                         <thead className="bg-gray-100/70 border-b border-gray-200">
                             <tr>
                                 <th className="px-6 py-4 text-xs font-bold text-gray-600 uppercase tracking-wider">Technician</th>
-                                <th className="px-6 py-4 text-xs font-bold text-gray-600 uppercase tracking-wider">Contact Info</th>
                                 <th className="px-6 py-4 text-xs font-bold text-gray-600 uppercase tracking-wider">Today's Attendance</th>
                                 <th className="px-6 py-4 text-xs font-bold text-gray-600 uppercase tracking-wider">Job Status</th>
                                 <th className="px-6 py-4 text-xs font-bold text-gray-600 uppercase tracking-wider">Tagged Station (Editable)</th>
@@ -203,7 +210,7 @@ export default function TechnicianRosterTab({ technicians, stations, loading, up
                         <tbody className="divide-y divide-gray-100">
                             {filteredTechnicians.length === 0 ? (
                                 <tr>
-                                    <td colSpan={5} className="px-6 py-12 text-center text-gray-500 font-medium">
+                                    <td colSpan={4} className="px-6 py-12 text-center text-gray-500 font-medium">
                                         No technicians found matching filters.
                                     </td>
                                 </tr>
@@ -224,12 +231,6 @@ export default function TechnicianRosterTab({ technicians, stations, loading, up
                                                         <div className="font-bold text-gray-900 text-sm">{tech.name || "Unnamed Technician"}</div>
                                                     </div>
                                                 </div>
-                                            </td>
-
-                                            {/* Contact Info */}
-                                            <td className="px-6 py-4">
-                                                <div className="text-sm text-gray-900 font-medium">{tech.phone || "No phone"}</div>
-                                                <div className="text-xs text-gray-500">{tech.email || "No email"}</div>
                                             </td>
 
                                             {/* Today's Attendance Column */}
@@ -254,13 +255,22 @@ export default function TechnicianRosterTab({ technicians, stations, loading, up
                                                 )}
                                             </td>
 
-                                            {/* Job Status Column */}
+                                            {/* Job Status Column with Elapsed Duration */}
                                             <td className="px-6 py-4">
                                                 {tech.is_on_job ? (
-                                                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-purple-100 text-purple-800 border border-purple-200">
-                                                        <span className="w-2 h-2 rounded-full bg-purple-600 animate-pulse"></span>
-                                                        On a Job {tech.current_job?.job_type ? `(${tech.current_job.job_type})` : ''}
-                                                    </span>
+                                                    <div>
+                                                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-purple-100 text-purple-800 border border-purple-200">
+                                                            <span className="w-2 h-2 rounded-full bg-purple-600 animate-pulse"></span>
+                                                            On a Job {tech.current_job?.job_type ? `(${tech.current_job.job_type})` : ''}
+                                                        </span>
+                                                        {tech.current_job?.started_at && (
+                                                            <div className="text-[11px] text-purple-700 font-bold mt-1 flex items-center gap-1">
+                                                                <span>⏱️</span>
+                                                                <span>Active for {getElapsedTime(tech.current_job.started_at)}</span>
+                                                                <span className="text-gray-400 font-normal">({new Date(tech.current_job.started_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })})</span>
+                                                            </div>
+                                                        )}
+                                                    </div>
                                                 ) : (
                                                     <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-gray-100 text-gray-600 border border-gray-200">
                                                         <span className="w-2 h-2 rounded-full bg-gray-400"></span>
