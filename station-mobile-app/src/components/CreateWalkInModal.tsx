@@ -55,20 +55,31 @@ export default function CreateWalkInModal({ visible, onClose, onSuccess }: Props
         return;
       }
 
-      let stationName = '';
-      if (bike.station_id) {
+      if (userProfile?.station_id && bike.station_id && bike.station_id !== userProfile.station_id) {
+        let bikeStationName = '';
         const { data: stationData } = await supabase
           .from('stations')
           .select('name')
           .eq('id', bike.station_id)
           .single();
         if (stationData) {
-          stationName = stationData.name;
+          bikeStationName = stationData.name;
         }
-      }
 
-      if (!stationName.toLowerCase().includes('nanded')) {
-        Alert.alert('Error', `Bike is tagged to ${stationName || 'an unknown'} station. Only Nanded station bikes are allowed for Walk-in.`);
+        let technicianStationName = '';
+        const { data: userStationData } = await supabase
+          .from('stations')
+          .select('name')
+          .eq('id', userProfile.station_id)
+          .single();
+        if (userStationData) {
+          technicianStationName = userStationData.name;
+        }
+
+        Alert.alert(
+          'Station Mismatch',
+          `Bike is tagged to ${bikeStationName || 'another station'}, but you are logged in at ${technicianStationName || 'your station'}. Only bikes tagged to your station are allowed for Walk-in.`
+        );
         setIsVerifying(false);
         return;
       }
@@ -102,7 +113,7 @@ export default function CreateWalkInModal({ visible, onClose, onSuccess }: Props
           engineer_id: userProfile?.id,
           issue_description: '', // to be filled later
           cost_charged: 0,
-          station_id: verifiedBike.station_id,
+          station_id: verifiedBike.station_id || userProfile?.station_id,
           model_id: verifiedBike.model_id,
           logged_at: new Date().toISOString(),
         }])

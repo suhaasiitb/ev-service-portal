@@ -204,13 +204,14 @@ export default function TechnicianRosterTab({ technicians, stations, loading, up
                                 <th className="px-6 py-4 text-xs font-bold text-gray-600 uppercase tracking-wider">Technician</th>
                                 <th className="px-6 py-4 text-xs font-bold text-gray-600 uppercase tracking-wider">Today's Attendance</th>
                                 <th className="px-6 py-4 text-xs font-bold text-gray-600 uppercase tracking-wider">Job Status</th>
+                                <th className="px-6 py-4 text-xs font-bold text-gray-600 uppercase tracking-wider">Jobs Done Today</th>
                                 <th className="px-6 py-4 text-xs font-bold text-gray-600 uppercase tracking-wider">Tagged Station (Editable)</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100">
                             {filteredTechnicians.length === 0 ? (
                                 <tr>
-                                    <td colSpan={4} className="px-6 py-12 text-center text-gray-500 font-medium">
+                                    <td colSpan={5} className="px-6 py-12 text-center text-gray-500 font-medium">
                                         No technicians found matching filters.
                                     </td>
                                 </tr>
@@ -277,6 +278,19 @@ export default function TechnicianRosterTab({ technicians, stations, loading, up
                                                         Idle
                                                     </span>
                                                 )}
+                                            </td>
+
+                                            {/* Jobs Done Today Column */}
+                                            <td className="px-6 py-4">
+                                                <div className="flex items-center gap-2">
+                                                    <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold ${
+                                                        (tech.completed_jobs_today_count || 0) > 0
+                                                            ? "bg-blue-100 text-blue-800 border border-blue-200"
+                                                            : "bg-gray-100 text-gray-500 border border-gray-200"
+                                                    }`}>
+                                                        🛠️ {tech.completed_jobs_today_count || 0} {tech.completed_jobs_today_count === 1 ? 'job' : 'jobs'} done
+                                                    </span>
+                                                </div>
                                             </td>
 
                                             {/* Tagged Station Editable Dropdown */}

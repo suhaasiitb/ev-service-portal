@@ -72,11 +72,24 @@ export function useTechnicians() {
                 // Find today's attendance log
                 const todayAttendance = attendanceData.find(a => a.technician_id === tech.id);
 
+                // Calculate jobs completed today
+                // Match jobs where completed_at is today (local time) or date string starts with todayStr
+                const completedJobsToday = jobsData.filter(j => {
+                    if (j.technician_id !== tech.id) return false;
+                    const isCompletedStatus = j.status === 'completed' || (!j.status && j.completed_at);
+                    if (!isCompletedStatus || !j.completed_at) return false;
+                    
+                    const compDate = new Date(j.completed_at);
+                    const compDateStr = !isNaN(compDate) ? compDate.toLocaleDateString('en-CA') : (typeof j.completed_at === 'string' ? j.completed_at.slice(0, 10) : "");
+                    return compDateStr === todayStr;
+                });
+
                 return {
                     ...tech,
                     station: matchedStation ? { id: matchedStation.id, name: matchedStation.name } : null,
                     is_on_job: !!activeJob,
                     current_job: activeJob || null,
+                    completed_jobs_today_count: completedJobsToday.length,
                     has_logged_today: !!todayAttendance,
                     today_attendance: todayAttendance || null
                 };
@@ -126,6 +139,21 @@ export function useTechnicians() {
 
     useEffect(() => {
         fetchTechniciansAndStations();
+
+        // Subscribe to realtime changes on technician_jobs and technician_attendance
+        const channel = supabase
+            .channel("technician_management_realtime")
+            .on("postgres_changes", { event: "*", schema: "public", table: "technician_jobs" }, () => {
+                fetchTechniciansAndStations();
+            })
+            .on("postgres_changes", { event: "*", schema: "public", table: "technician_attendance" }, () => {
+                fetchTechniciansAndStations();
+            })
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
     }, []);
 
     return {
