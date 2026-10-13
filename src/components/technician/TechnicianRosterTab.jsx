@@ -34,6 +34,7 @@ export default function TechnicianRosterTab({
     const [attendanceFilter, setAttendanceFilter] = useState("all");
     const [shiftFilter, setShiftFilter] = useState("all");
     const [configModalTech, setConfigModalTech] = useState(null); // Technician being edited
+    const [jobsModalTech, setJobsModalTech] = useState(null); // Technician whose jobs are viewed in popup
     const [saveFeedback, setSaveFeedback] = useState({}); // { [techId]: 'success' | 'error' }
     const [shiftSaveFeedback, setShiftSaveFeedback] = useState({}); // { [techId]: 'success' | 'error' }
 
@@ -368,13 +369,18 @@ export default function TechnicianRosterTab({
                                             {/* Jobs Done Today Column */}
                                             <td className="px-6 py-4">
                                                 <div className="flex items-center gap-2">
-                                                    <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold ${
-                                                        (tech.completed_jobs_today_count || 0) > 0
-                                                            ? "bg-blue-100 text-blue-800 border border-blue-200"
-                                                            : "bg-gray-100 text-gray-500 border border-gray-200"
-                                                    }`}>
+                                                    <button
+                                                        onClick={() => setJobsModalTech(tech)}
+                                                        className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold transition-all shadow-xs ${
+                                                            (tech.completed_jobs_today_count || 0) > 0
+                                                                ? "bg-blue-100 text-blue-800 border border-blue-300 hover:bg-blue-200 hover:scale-105 cursor-pointer"
+                                                                : "bg-gray-100 text-gray-500 border border-gray-200 hover:bg-gray-200 cursor-pointer"
+                                                        }`}
+                                                        title="Click to view jobs details"
+                                                    >
                                                         🛠️ {tech.completed_jobs_today_count || 0} {tech.completed_jobs_today_count === 1 ? 'job' : 'jobs'} done
-                                                    </span>
+                                                        <span className="ml-1 text-[10px] opacity-70">↗</span>
+                                                    </button>
                                                 </div>
                                             </td>
 
@@ -501,6 +507,128 @@ export default function TechnicianRosterTab({
                                 className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-bold shadow-sm transition-colors"
                             >
                                 Done
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal for Jobs Done Today in Tabular Form */}
+            {jobsModalTech && (
+                <div className="fixed inset-0 z-[130] flex items-center justify-center p-4">
+                    {/* Backdrop */}
+                    <div 
+                        className="absolute inset-0 bg-slate-900/50 backdrop-blur-xs transition-opacity"
+                        onClick={() => setJobsModalTech(null)}
+                    />
+
+                    {/* Modal Dialog */}
+                    <div className="relative bg-white rounded-2xl shadow-2xl border border-gray-100 max-w-3xl w-full max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in duration-200">
+                        {/* Header */}
+                        <div className="p-5 border-b border-gray-100 bg-gray-50 flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-lg">
+                                    🛠️
+                                </div>
+                                <div>
+                                    <h3 className="font-bold text-gray-900 text-base flex items-center gap-2">
+                                        Jobs Done Today: {jobsModalTech.name || "Technician"}
+                                        <span className="bg-blue-100 text-blue-800 text-xs px-2.5 py-0.5 rounded-full font-bold">
+                                            {jobsModalTech.completed_jobs_today_count || 0} Total
+                                        </span>
+                                    </h3>
+                                    <p className="text-xs text-gray-500 mt-0.5">
+                                        Completed repairs and service logs for today ({new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })})
+                                    </p>
+                                </div>
+                            </div>
+                            <button
+                                onClick={() => setJobsModalTech(null)}
+                                className="w-8 h-8 rounded-full bg-gray-200 hover:bg-gray-300 flex items-center justify-center text-gray-600 transition-colors"
+                            >
+                                ✕
+                            </button>
+                        </div>
+
+                        {/* Content Body: Tabular form */}
+                        <div className="p-6 overflow-y-auto flex-1">
+                            {!jobsModalTech.completed_jobs_today || jobsModalTech.completed_jobs_today.length === 0 ? (
+                                <div className="p-12 text-center bg-gray-50 rounded-xl border border-dashed border-gray-200">
+                                    <div className="text-3xl mb-2">☕</div>
+                                    <p className="text-sm font-bold text-gray-700">No jobs completed today</p>
+                                    <p className="text-xs text-gray-500 mt-1">This technician hasn't completed any repair jobs on the current day yet.</p>
+                                </div>
+                            ) : (
+                                <div className="overflow-x-auto rounded-xl border border-gray-200">
+                                    <table className="w-full text-left border-collapse">
+                                        <thead className="bg-gray-100/80 border-b border-gray-200">
+                                            <tr>
+                                                <th className="px-4 py-3 text-xs font-bold text-gray-600 uppercase tracking-wider">#</th>
+                                                <th className="px-4 py-3 text-xs font-bold text-gray-600 uppercase tracking-wider">Bike No</th>
+                                                <th className="px-4 py-3 text-xs font-bold text-gray-600 uppercase tracking-wider">Job Type</th>
+                                                <th className="px-4 py-3 text-xs font-bold text-gray-600 uppercase tracking-wider">Time Spent</th>
+                                                <th className="px-4 py-3 text-xs font-bold text-gray-600 uppercase tracking-wider">Parts Used</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-gray-100 bg-white">
+                                            {jobsModalTech.completed_jobs_today.map((job, idx) => (
+                                                <tr key={job.id || idx} className="hover:bg-gray-50/70 transition-colors">
+                                                    <td className="px-4 py-3 text-xs font-semibold text-gray-400">
+                                                        {idx + 1}
+                                                    </td>
+                                                    <td className="px-4 py-3 text-sm font-bold text-blue-700">
+                                                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-blue-50 border border-blue-200 font-mono tracking-tight">
+                                                            🛵 {job.bike_number_text || job.bike_number || "N/A"}
+                                                        </span>
+                                                    </td>
+                                                    <td className="px-4 py-3 text-xs font-semibold text-gray-700">
+                                                        {job.job_type || "Repair"}
+                                                    </td>
+                                                    <td className="px-4 py-3">
+                                                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-purple-50 text-purple-700 font-bold text-xs border border-purple-200">
+                                                            ⏱️ {job.duration || "-"}
+                                                        </span>
+                                                        {job.completed_at && (
+                                                            <div className="text-[10px] text-gray-400 mt-0.5">
+                                                                Done at {new Date(job.completed_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                            </div>
+                                                        )}
+                                                    </td>
+                                                    <td className="px-4 py-3">
+                                                        {job.parts_used && job.parts_used.length > 0 ? (
+                                                            <div className="flex flex-wrap gap-1.5 max-w-xs">
+                                                                {job.parts_used.map((part, pIdx) => {
+                                                                    const partName = typeof part === "string" ? part : (part.part_name || part.name || "Part");
+                                                                    const qty = part.quantity ? ` (${part.quantity}x)` : "";
+                                                                    return (
+                                                                        <span 
+                                                                            key={pIdx} 
+                                                                            className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-amber-50 text-amber-900 border border-amber-200"
+                                                                        >
+                                                                            🔩 {partName}{qty}
+                                                                        </span>
+                                                                    );
+                                                                })}
+                                                            </div>
+                                                        ) : (
+                                                            <span className="text-xs text-gray-400 italic">None used</span>
+                                                        )}
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Modal Footer */}
+                        <div className="p-4 bg-gray-50 border-t border-gray-100 flex justify-end">
+                            <button
+                                onClick={() => setJobsModalTech(null)}
+                                className="px-5 py-2 bg-gray-900 hover:bg-black text-white rounded-xl text-sm font-bold shadow-xs transition-colors"
+                            >
+                                Close
                             </button>
                         </div>
                     </div>
