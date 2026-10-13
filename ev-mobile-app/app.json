@@ -2,7 +2,7 @@
   "expo": {
     "name": "ev-mobile-app",
     "slug": "ev-mobile-app",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "evmobileapp",
@@ -18,7 +18,8 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.urbanconnect.evservice"
+      "package": "com.urbanconnect.evservice",
+      "versionCode": 3
     },
     "web": {
       "output": "static",

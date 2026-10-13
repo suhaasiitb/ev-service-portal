@@ -1,3 +1,5 @@
+import { getTechnicianShift, evaluateCheckInAdherence, evaluateShiftDuration } from "../../utils/technicianShifts";
+
 export default function PendingApprovalsTab({ attendance, onApprove, onReject, onViewDetails }) {
     // Filter only records that are pending approval (either check-in or check-out)
     const pendingRecords = attendance.filter(
@@ -99,6 +101,39 @@ export default function PendingApprovalsTab({ attendance, onApprove, onReject, o
                                             <div className="bg-red-50 text-red-700 px-3 py-2 rounded-lg text-xs font-medium border border-red-100 inline-block">
                                                 <span className="font-bold">⚠️ {distance ? `${Math.round(distance)}m` : 'Unknown distance'}</span> away from {record.station?.name}
                                             </div>
+
+                                            {/* Shift Info */}
+                                            {(() => {
+                                                const assignedShift = record.shift_timing || getTechnicianShift(record.technician);
+                                                const adherence = !isHandlingCheckOut && record.check_in_time 
+                                                    ? evaluateCheckInAdherence(record.check_in_time, assignedShift, record.date) 
+                                                    : null;
+                                                const duration = isHandlingCheckOut && record.check_in_time 
+                                                    ? evaluateShiftDuration(record.check_in_time, record.check_out_time) 
+                                                    : null;
+
+                                                return (
+                                                    <div className="mt-2 space-y-1">
+                                                        <div className="text-[11px] text-gray-500 font-medium">
+                                                            Shift: <span className="font-bold text-gray-800">{assignedShift}</span>
+                                                        </div>
+                                                        {adherence && (
+                                                            <div>
+                                                                <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold border ${adherence.badgeClass}`}>
+                                                                    {adherence.isCompliant ? "✓" : "⚠️"} {adherence.label}
+                                                                </span>
+                                                            </div>
+                                                        )}
+                                                        {duration && (
+                                                            <div>
+                                                                <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold border ${duration.badgeClass}`}>
+                                                                    ⏱️ {duration.statusLabel}
+                                                                </span>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                );
+                                            })()}
                                         </div>
                                     </div>
                                 </div>

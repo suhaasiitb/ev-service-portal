@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { STANDARD_SHIFTS, DEFAULT_SHIFT, formatTime12Hr } from "../../utils/technicianShifts";
 
 function getElapsedTime(startedAt) {
     if (!startedAt) return "";
@@ -18,12 +19,23 @@ function getElapsedTime(startedAt) {
     return `${mins}m`;
 }
 
-export default function TechnicianRosterTab({ technicians, stations, loading, updatingId, onUpdateStation }) {
+export default function TechnicianRosterTab({ 
+    technicians, 
+    stations, 
+    loading, 
+    updatingId, 
+    updatingShiftId, 
+    onUpdateStation,
+    onUpdateShift 
+}) {
     const [searchQuery, setSearchQuery] = useState("");
     const [stationFilter, setStationFilter] = useState("all");
     const [jobStatusFilter, setJobStatusFilter] = useState("all");
     const [attendanceFilter, setAttendanceFilter] = useState("all");
+    const [shiftFilter, setShiftFilter] = useState("all");
+    const [configModalTech, setConfigModalTech] = useState(null); // Technician being edited
     const [saveFeedback, setSaveFeedback] = useState({}); // { [techId]: 'success' | 'error' }
+    const [shiftSaveFeedback, setShiftSaveFeedback] = useState({}); // { [techId]: 'success' | 'error' }
 
     const handleStationChange = async (techId, newStationId) => {
         const res = await onUpdateStation(techId, newStationId);
@@ -39,6 +51,24 @@ export default function TechnicianRosterTab({ technicians, stations, loading, up
         } else {
             setSaveFeedback(prev => ({ ...prev, [techId]: "error" }));
             alert("Failed to update station: " + res.error);
+        }
+    };
+
+    const handleShiftChange = async (techId, newShift) => {
+        if (!onUpdateShift) return;
+        const res = await onUpdateShift(techId, newShift);
+        if (res.success) {
+            setShiftSaveFeedback(prev => ({ ...prev, [techId]: "success" }));
+            setTimeout(() => {
+                setShiftSaveFeedback(prev => {
+                    const copy = { ...prev };
+                    delete copy[techId];
+                    return copy;
+                });
+            }, 2500);
+        } else {
+            setShiftSaveFeedback(prev => ({ ...prev, [techId]: "error" }));
+            alert("Failed to update shift timing: " + res.error);
         }
     };
 
@@ -78,6 +108,11 @@ export default function TechnicianRosterTab({ technicians, stations, loading, up
             } else if (attendanceFilter === "not_logged") {
                 if (tech.has_logged_today) return false;
             }
+        }
+
+        // Shift Filter
+        if (shiftFilter !== "all") {
+            if (tech.assigned_shift !== shiftFilter) return false;
         }
 
         return true;
@@ -189,6 +224,18 @@ export default function TechnicianRosterTab({ technicians, stations, loading, up
                                 <option key={st.id} value={st.id}>{st.name}</option>
                             ))}
                         </select>
+
+                        {/* Shift Timing Filter */}
+                        <select
+                            value={shiftFilter}
+                            onChange={(e) => setShiftFilter(e.target.value)}
+                            className="px-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white font-medium"
+                        >
+                            <option value="all">All Shifts (10 hrs)</option>
+                            {STANDARD_SHIFTS.map(s => (
+                                <option key={s.id} value={s.id}>{s.label}</option>
+                            ))}
+                        </select>
                     </div>
 
                     <div className="text-xs text-gray-500 font-medium">
@@ -203,15 +250,16 @@ export default function TechnicianRosterTab({ technicians, stations, loading, up
                             <tr>
                                 <th className="px-6 py-4 text-xs font-bold text-gray-600 uppercase tracking-wider">Technician</th>
                                 <th className="px-6 py-4 text-xs font-bold text-gray-600 uppercase tracking-wider">Today's Attendance</th>
+                                <th className="px-6 py-4 text-xs font-bold text-gray-600 uppercase tracking-wider">Shift Tracking</th>
                                 <th className="px-6 py-4 text-xs font-bold text-gray-600 uppercase tracking-wider">Job Status</th>
                                 <th className="px-6 py-4 text-xs font-bold text-gray-600 uppercase tracking-wider">Jobs Done Today</th>
-                                <th className="px-6 py-4 text-xs font-bold text-gray-600 uppercase tracking-wider">Tagged Station (Editable)</th>
+                                <th className="px-6 py-4 text-xs font-bold text-gray-600 uppercase tracking-wider text-right">Actions</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100">
                             {filteredTechnicians.length === 0 ? (
                                 <tr>
-                                    <td colSpan={5} className="px-6 py-12 text-center text-gray-500 font-medium">
+                                    <td colSpan={6} className="px-6 py-12 text-center text-gray-500 font-medium">
                                         No technicians found matching filters.
                                     </td>
                                 </tr>
@@ -222,7 +270,7 @@ export default function TechnicianRosterTab({ technicians, stations, loading, up
 
                                     return (
                                         <tr key={tech.id} className="hover:bg-gray-50/70 transition-colors">
-                                            {/* Technician Name */}
+                                            {/* Technician Name & Current Assignment Badges */}
                                             <td className="px-6 py-4">
                                                 <div className="flex items-center gap-3">
                                                     <div className="w-10 h-10 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center font-bold shrink-0">
@@ -230,6 +278,16 @@ export default function TechnicianRosterTab({ technicians, stations, loading, up
                                                     </div>
                                                     <div>
                                                         <div className="font-bold text-gray-900 text-sm">{tech.name || "Unnamed Technician"}</div>
+                                                        <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                                                            <span className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold ${
+                                                                tech.station?.name ? "bg-blue-50 text-blue-700 border border-blue-200" : "bg-amber-50 text-amber-700 border border-amber-200"
+                                                            }`}>
+                                                                📍 {tech.station?.name || "Unassigned"}
+                                                            </span>
+                                                            <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-gray-100 text-gray-700 border border-gray-200">
+                                                                ⏰ {tech.assigned_shift || DEFAULT_SHIFT}
+                                                            </span>
+                                                        </div>
                                                     </div>
                                                 </div>
                                             </td>
@@ -253,6 +311,33 @@ export default function TechnicianRosterTab({ technicians, stations, loading, up
                                                         <span className="w-2 h-2 rounded-full bg-rose-500"></span>
                                                         Not Logged
                                                     </span>
+                                                )}
+                                            </td>
+
+                                            {/* Shift Tracking (Login Adherence & 10 Hours Clocked) */}
+                                            <td className="px-6 py-4">
+                                                {tech.has_logged_today ? (
+                                                    <div className="space-y-1.5">
+                                                        {/* Check-In Timing Window Adherence (+/- 30 min) */}
+                                                        {tech.check_in_adherence && (
+                                                            <div>
+                                                                <span className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold border ${tech.check_in_adherence.badgeClass}`}>
+                                                                    {tech.check_in_adherence.isCompliant ? "✓" : "⚠️"} {tech.check_in_adherence.label}
+                                                                </span>
+                                                            </div>
+                                                        )}
+
+                                                        {/* 10-Hour Shift Duration Progress */}
+                                                        {tech.shift_duration && (
+                                                            <div className="flex items-center gap-1.5">
+                                                                <span className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold border ${tech.shift_duration.badgeClass}`}>
+                                                                    ⏱️ {tech.shift_duration.statusLabel}
+                                                                </span>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                ) : (
+                                                    <span className="text-xs text-gray-400 font-medium italic">Pending Login</span>
                                                 )}
                                             </td>
 
@@ -293,33 +378,14 @@ export default function TechnicianRosterTab({ technicians, stations, loading, up
                                                 </div>
                                             </td>
 
-                                            {/* Tagged Station Editable Dropdown */}
-                                            <td className="px-6 py-4">
-                                                <div className="flex items-center gap-2 max-w-xs">
-                                                    <select
-                                                        value={tech.station_id || ""}
-                                                        disabled={isUpdating}
-                                                        onChange={(e) => handleStationChange(tech.id, e.target.value)}
-                                                        className={`w-full border rounded-xl px-3 py-2 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all ${
-                                                            tech.station_id
-                                                                ? "bg-blue-50/50 border-blue-200 text-blue-900"
-                                                                : "bg-amber-50/50 border-amber-200 text-amber-800"
-                                                        } ${isUpdating ? "opacity-50 cursor-wait" : "cursor-pointer hover:border-blue-400"}`}
-                                                    >
-                                                        <option value="">-- Unassigned --</option>
-                                                        {stations.map(st => (
-                                                            <option key={st.id} value={st.id}>{st.name}</option>
-                                                        ))}
-                                                    </select>
-                                                    {isUpdating && (
-                                                        <span className="text-xs font-bold text-blue-600 animate-pulse">Saving...</span>
-                                                    )}
-                                                    {feedback === "success" && (
-                                                        <span className="text-xs font-bold text-green-600 bg-green-50 border border-green-200 px-2 py-1 rounded-lg animate-in fade-in">
-                                                            ✓ Saved
-                                                        </span>
-                                                    )}
-                                                </div>
+                                            {/* Actions Column with Toggle Button */}
+                                            <td className="px-6 py-4 text-right">
+                                                <button
+                                                    onClick={() => setConfigModalTech(tech)}
+                                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 transition-colors shadow-xs"
+                                                >
+                                                    ⚙️ Manage Assignment
+                                                </button>
                                             </td>
                                         </tr>
                                     );
@@ -329,6 +395,117 @@ export default function TechnicianRosterTab({ technicians, stations, loading, up
                     </table>
                 </div>
             </div>
+
+            {/* Modal for Changing Station & Shift Timings */}
+            {configModalTech && (
+                <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
+                    {/* Backdrop */}
+                    <div 
+                        className="absolute inset-0 bg-slate-900/40 backdrop-blur-xs transition-opacity"
+                        onClick={() => setConfigModalTech(null)}
+                    />
+
+                    {/* Dialog Container */}
+                    <div className="relative bg-white rounded-2xl shadow-2xl border border-gray-100 max-w-md w-full overflow-hidden animate-in fade-in zoom-in duration-200">
+                        {/* Header */}
+                        <div className="p-5 border-b border-gray-100 bg-gray-50 flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-base">
+                                    {configModalTech.name?.charAt(0)?.toUpperCase() || "T"}
+                                </div>
+                                <div>
+                                    <h3 className="font-bold text-gray-900 text-base">{configModalTech.name || "Technician"}</h3>
+                                    <p className="text-xs text-gray-500">Edit station assignment and shift timing</p>
+                                </div>
+                            </div>
+                            <button
+                                onClick={() => setConfigModalTech(null)}
+                                className="w-8 h-8 rounded-full bg-gray-200 hover:bg-gray-300 flex items-center justify-center text-gray-600 transition-colors"
+                            >
+                                ✕
+                            </button>
+                        </div>
+
+                        {/* Body Form */}
+                        <div className="p-6 space-y-5">
+                            {/* Tagged Station Field */}
+                            <div>
+                                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">
+                                    📍 Tagged Station
+                                </label>
+                                <select
+                                    value={configModalTech.station_id || ""}
+                                    disabled={updatingId === configModalTech.id}
+                                    onChange={async (e) => {
+                                        const newStationId = e.target.value;
+                                        await handleStationChange(configModalTech.id, newStationId);
+                                        const matched = stations.find(s => s.id === newStationId);
+                                        setConfigModalTech(prev => ({
+                                            ...prev,
+                                            station_id: newStationId,
+                                            station: matched ? { id: matched.id, name: matched.name } : null
+                                        }));
+                                    }}
+                                    className="w-full border border-gray-300 rounded-xl px-3.5 py-2.5 text-sm font-semibold bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all cursor-pointer"
+                                >
+                                    <option value="">-- Unassigned --</option>
+                                    {stations.map(st => (
+                                        <option key={st.id} value={st.id}>{st.name}</option>
+                                    ))}
+                                </select>
+                                {saveFeedback[configModalTech.id] === "success" && (
+                                    <p className="text-xs text-green-600 font-bold mt-1.5 flex items-center gap-1">
+                                        ✓ Station updated successfully!
+                                    </p>
+                                )}
+                            </div>
+
+                            {/* Assigned Shift Timings Field */}
+                            <div>
+                                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">
+                                    ⏰ Shift Timing (10 Hours)
+                                </label>
+                                <select
+                                    value={configModalTech.assigned_shift || DEFAULT_SHIFT}
+                                    disabled={updatingShiftId === configModalTech.id}
+                                    onChange={async (e) => {
+                                        const newShift = e.target.value;
+                                        await handleShiftChange(configModalTech.id, newShift);
+                                        setConfigModalTech(prev => ({
+                                            ...prev,
+                                            assigned_shift: newShift,
+                                            shift_timing: newShift
+                                        }));
+                                    }}
+                                    className="w-full border border-gray-300 rounded-xl px-3.5 py-2.5 text-sm font-semibold bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all cursor-pointer"
+                                >
+                                    {STANDARD_SHIFTS.map(s => (
+                                        <option key={s.id} value={s.id}>{s.label}</option>
+                                    ))}
+                                </select>
+                                {shiftSaveFeedback[configModalTech.id] === "success" && (
+                                    <p className="text-xs text-green-600 font-bold mt-1.5 flex items-center gap-1">
+                                        ✓ Shift timing updated successfully!
+                                    </p>
+                                )}
+                                <p className="text-[11px] text-gray-500 mt-1">
+                                    Check-in allowed within ±30 minutes of shift start. Clocking 10 hours required.
+                                </p>
+                            </div>
+                        </div>
+
+                        {/* Footer */}
+                        <div className="p-4 bg-gray-50 border-t border-gray-100 flex justify-end">
+                            <button
+                                onClick={() => setConfigModalTech(null)}
+                                className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-bold shadow-sm transition-colors"
+                            >
+                                Done
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

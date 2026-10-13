@@ -1,12 +1,15 @@
 import { useState, useEffect } from "react";
 import { supabase } from "../lib/supabaseClient";
 
+import { getTechnicianShift, evaluateCheckInAdherence, evaluateShiftDuration } from "../utils/technicianShifts";
+
 export function useTechnicians() {
     const [technicians, setTechnicians] = useState([]);
     const [stations, setStations] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [updatingId, setUpdatingId] = useState(null);
+    const [updatingShiftId, setUpdatingShiftId] = useState(null);
 
     async function fetchTechniciansAndStations() {
         setLoading(true);
@@ -23,13 +26,35 @@ export function useTechnicians() {
             setStations(validStations);
 
             // 2. Fetch technicians from users table where role contains 'technician'
-            const { data: techData, error: techError } = await supabase
-                .from("users")
-                .select("id, name, email, phone, role, station_id")
-                .ilike("role", "%technician%")
-                .order("name");
-
-            if (techError) throw techError;
+            let techData = [];
+            // Try fetching with shift_timing column if it exists in DB, otherwise fallback
+            try {
+                const { data: tData, error: tErr } = await supabase
+                    .from("users")
+                    .select("id, name, email, phone, role, station_id, shift_timing, shift_start, shift_end")
+                    .ilike("role", "%technician%")
+                    .order("name");
+                if (!tErr) {
+                    techData = tData || [];
+                } else {
+                    // Fallback without shift columns if not yet run in migration
+                    const { data: fallbackData, error: fbErr } = await supabase
+                        .from("users")
+                        .select("id, name, email, phone, role, station_id")
+                        .ilike("role", "%technician%")
+                        .order("name");
+                    if (fbErr) throw fbErr;
+                    techData = fallbackData || [];
+                }
+            } catch (err) {
+                const { data: fallbackData, error: fbErr } = await supabase
+                    .from("users")
+                    .select("id, name, email, phone, role, station_id")
+                    .ilike("role", "%technician%")
+                    .order("name");
+                if (fbErr) throw fbErr;
+                techData = fallbackData || [];
+            }
 
             // 3. Fetch technician_jobs to determine active job status
             let jobsData = [];
@@ -84,14 +109,28 @@ export function useTechnicians() {
                     return compDateStr === todayStr;
                 });
 
+                // Shift timing assigned to technician
+                const assignedShift = getTechnicianShift(tech);
+
+                // Shift evaluation for today's attendance
+                const checkInAdherence = todayAttendance?.check_in_time 
+                    ? evaluateCheckInAdherence(todayAttendance.check_in_time, assignedShift, todayStr)
+                    : null;
+                const shiftDuration = todayAttendance?.check_in_time
+                    ? evaluateShiftDuration(todayAttendance.check_in_time, todayAttendance.check_out_time)
+                    : null;
+
                 return {
                     ...tech,
+                    assigned_shift: assignedShift,
                     station: matchedStation ? { id: matchedStation.id, name: matchedStation.name } : null,
                     is_on_job: !!activeJob,
                     current_job: activeJob || null,
                     completed_jobs_today_count: completedJobsToday.length,
                     has_logged_today: !!todayAttendance,
-                    today_attendance: todayAttendance || null
+                    today_attendance: todayAttendance || null,
+                    check_in_adherence: checkInAdherence,
+                    shift_duration: shiftDuration
                 };
             });
 
@@ -103,6 +142,81 @@ export function useTechnicians() {
             setLoading(false);
         }
     }
+
+    const updateTechnicianShift = async (technicianId, newShiftTiming) => {
+        setUpdatingShiftId(technicianId);
+        try {
+            // Parse start and end (e.g., "08:00 - 18:00")
+            const parts = newShiftTiming.split("-").map(p => p.trim());
+            const start = parts[0] ? `${parts[0]}:00` : "08:00:00";
+            const end = parts[1] ? `${parts[1]}:00` : "18:00:00";
+
+            let updatedInDb = false;
+
+            // Attempt 1: Try updating dedicated shift columns in `users`
+            try {
+                const { error: colErr } = await supabase
+                    .from("users")
+                    .update({ 
+                        shift_timing: newShiftTiming,
+                        shift_start: start,
+                        shift_end: end
+                    })
+                    .eq("id", technicianId);
+
+                if (!colErr) {
+                    updatedInDb = true;
+                }
+            } catch (e) {
+                // Ignore and proceed to fallback
+            }
+
+            // Attempt 2: If dedicated columns do not exist yet, embed in role or metadata
+            if (!updatedInDb) {
+                const currentTech = technicians.find(t => t.id === technicianId);
+                const baseRole = (currentTech?.role || "technician").split(":")[0].trim();
+                const encodedRole = `${baseRole}:shift=${newShiftTiming.replace(/\s+/g, '')}`;
+                
+                const { error: roleErr } = await supabase
+                    .from("users")
+                    .update({ role: encodedRole })
+                    .eq("id", technicianId);
+
+                if (roleErr) {
+                    console.warn("Could not encode shift into role, falling back to local storage:", roleErr);
+                }
+            }
+
+            // Always save to localStorage as well for instant local cache durability
+            if (typeof window !== "undefined") {
+                localStorage.setItem(`tech_shift_${technicianId}`, newShiftTiming);
+            }
+
+            // Optimistically update local state
+            setTechnicians(prev => prev.map(tech => {
+                if (tech.id === technicianId) {
+                    const todayStr = new Date().toISOString().split("T")[0];
+                    const checkInAdherence = tech.today_attendance?.check_in_time 
+                        ? evaluateCheckInAdherence(tech.today_attendance.check_in_time, newShiftTiming, todayStr)
+                        : null;
+                    return {
+                        ...tech,
+                        shift_timing: newShiftTiming,
+                        assigned_shift: newShiftTiming,
+                        check_in_adherence: checkInAdherence
+                    };
+                }
+                return tech;
+            }));
+
+            return { success: true };
+        } catch (err) {
+            console.error("Error updating technician shift timing:", err);
+            return { success: false, error: err.message };
+        } finally {
+            setUpdatingShiftId(null);
+        }
+    };
 
     const updateTechnicianStation = async (technicianId, newStationId) => {
         setUpdatingId(technicianId);
@@ -162,7 +276,9 @@ export function useTechnicians() {
         loading,
         error,
         updatingId,
+        updatingShiftId,
         refetchTechnicians: fetchTechniciansAndStations,
-        updateTechnicianStation
+        updateTechnicianStation,
+        updateTechnicianShift
     };
 }

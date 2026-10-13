@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { getTechnicianShift, evaluateCheckInAdherence, evaluateShiftDuration } from "../../utils/technicianShifts";
 
 export default function AttendanceHistoryTab({ attendance, onViewDetails }) {
     const [statusFilter, setStatusFilter] = useState("all");
@@ -83,8 +84,10 @@ export default function AttendanceHistoryTab({ attendance, onViewDetails }) {
                             <tr>
                                 <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Technician</th>
                                 <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Date</th>
+                                <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Assigned Shift</th>
                                 <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Check-In</th>
                                 <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Check-Out</th>
+                                <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Shift Adherence (10h)</th>
                                 <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Status</th>
                                 <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider text-right">Actions</th>
                             </tr>
@@ -92,7 +95,7 @@ export default function AttendanceHistoryTab({ attendance, onViewDetails }) {
                         <tbody className="divide-y divide-gray-100">
                             {filteredRecords.length === 0 ? (
                                 <tr>
-                                    <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
+                                    <td colSpan={8} className="px-6 py-12 text-center text-gray-500">
                                         No attendance records found matching filters.
                                     </td>
                                 </tr>
@@ -113,6 +116,11 @@ export default function AttendanceHistoryTab({ attendance, onViewDetails }) {
                                         <td className="px-6 py-4 text-sm font-medium text-gray-900">
                                             {record.date}
                                         </td>
+                                        <td className="px-6 py-4 text-xs font-semibold text-gray-700">
+                                            <span className="bg-gray-100 px-2.5 py-1 rounded-md border border-gray-200">
+                                                {record.shift_timing || getTechnicianShift(record.technician)}
+                                            </span>
+                                        </td>
                                         <td className="px-6 py-4">
                                             <div className="text-sm font-medium text-gray-900">
                                                 {record.check_in_time ? new Date(record.check_in_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "-"}
@@ -128,6 +136,32 @@ export default function AttendanceHistoryTab({ attendance, onViewDetails }) {
                                             {record.check_out_distance && (
                                                 <div className="text-xs text-gray-500">{Math.round(record.check_out_distance)}m away</div>
                                             )}
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            {(() => {
+                                                const assignedShift = record.shift_timing || getTechnicianShift(record.technician);
+                                                const adherence = record.check_in_time ? evaluateCheckInAdherence(record.check_in_time, assignedShift, record.date) : null;
+                                                const duration = record.check_in_time ? evaluateShiftDuration(record.check_in_time, record.check_out_time) : null;
+
+                                                return (
+                                                    <div className="space-y-1">
+                                                        {adherence && (
+                                                            <div>
+                                                                <span className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold border ${adherence.badgeClass}`}>
+                                                                    {adherence.isCompliant ? "✓" : "⚠️"} {adherence.label}
+                                                                </span>
+                                                            </div>
+                                                        )}
+                                                        {duration && (
+                                                            <div>
+                                                                <span className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold border ${duration.badgeClass}`}>
+                                                                    ⏱️ {duration.statusLabel}
+                                                                </span>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                );
+                                            })()}
                                         </td>
                                         <td className="px-6 py-4">
                                             {getStatusBadge(record.approval_status, record.check_out_approval_status)}

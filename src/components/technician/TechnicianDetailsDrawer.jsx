@@ -1,3 +1,5 @@
+import { getTechnicianShift, evaluateCheckInAdherence, evaluateShiftDuration } from "../../utils/technicianShifts";
+
 export default function TechnicianDetailsDrawer({ open, onClose, record }) {
     if (!open || !record) return null;
 
@@ -58,8 +60,37 @@ export default function TechnicianDetailsDrawer({ open, onClose, record }) {
                                 <div className="font-semibold text-gray-900">{record.station?.name || "Unknown"}</div>
                             </div>
                             <div className="border border-gray-200 rounded-xl p-4">
-                                <div className="text-xs text-gray-500 font-bold mb-1">Total Duration</div>
-                                <div className="font-semibold text-gray-900">{getDuration(record.check_in_time, record.check_out_time)}</div>
+                                <div className="text-xs text-gray-500 font-bold mb-1">Assigned Shift (10 hrs)</div>
+                                <div className="font-semibold text-gray-900">{record.shift_timing || getTechnicianShift(record.technician)}</div>
+                            </div>
+                            <div className="border border-gray-200 rounded-xl p-4">
+                                <div className="text-xs text-gray-500 font-bold mb-1">Login Adherence (±30m Window)</div>
+                                <div>
+                                    {(() => {
+                                        const assigned = record.shift_timing || getTechnicianShift(record.technician);
+                                        const adherence = record.check_in_time ? evaluateCheckInAdherence(record.check_in_time, assigned, record.date) : null;
+                                        if (!adherence) return <span className="text-gray-400">-</span>;
+                                        return (
+                                            <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-bold border ${adherence.badgeClass}`}>
+                                                {adherence.isCompliant ? "✓" : "⚠️"} {adherence.label}
+                                            </span>
+                                        );
+                                    })()}
+                                </div>
+                            </div>
+                            <div className="border border-gray-200 rounded-xl p-4">
+                                <div className="text-xs text-gray-500 font-bold mb-1">10-Hour Shift Progress</div>
+                                <div>
+                                    {(() => {
+                                        const duration = record.check_in_time ? evaluateShiftDuration(record.check_in_time, record.check_out_time) : null;
+                                        if (!duration) return <span className="text-gray-400">-</span>;
+                                        return (
+                                            <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-bold border ${duration.badgeClass}`}>
+                                                ⏱️ {duration.statusLabel}
+                                            </span>
+                                        );
+                                    })()}
+                                </div>
                             </div>
                         </div>
                     </div>
