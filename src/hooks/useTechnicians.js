@@ -100,7 +100,15 @@ export function useTechnicians() {
             let walkinPartsMap = {};
             try {
                 const [wpRes, pcRes] = await Promise.all([
-                    supabase.from("walkin_parts").select("walkin_id, part_id, quantity"),
+                    supabase.from("walkin_parts").select(`
+                        walkin_id,
+                        part_id,
+                        quantity,
+                        parts_catalog (
+                            id,
+                            part_name
+                        )
+                    `),
                     supabase.from("parts_catalog").select("id, part_name")
                 ]);
 
@@ -113,7 +121,7 @@ export function useTechnicians() {
 
                 if (wpRes.data) {
                     wpRes.data.forEach(row => {
-                        const name = catalogMap[row.part_id] || "Part";
+                        const name = row.parts_catalog?.part_name || catalogMap[row.part_id] || "Part";
                         if (!walkinPartsMap[row.walkin_id]) {
                             walkinPartsMap[row.walkin_id] = [];
                         }
@@ -574,6 +582,9 @@ export function useTechnicians() {
                 fetchTechniciansAndStations();
             })
             .on("postgres_changes", { event: "*", schema: "public", table: "walkins" }, () => {
+                fetchTechniciansAndStations();
+            })
+            .on("postgres_changes", { event: "*", schema: "public", table: "walkin_parts" }, () => {
                 fetchTechniciansAndStations();
             })
             .on("postgres_changes", { event: "*", schema: "public", table: "tickets" }, () => {
