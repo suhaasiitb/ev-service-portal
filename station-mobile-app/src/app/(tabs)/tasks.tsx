@@ -9,6 +9,7 @@ import {
   TouchableWithoutFeedback,
   Platform,
   RefreshControl,
+  Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
@@ -29,6 +30,7 @@ import CloseTicketModal from "../../components/CloseTicketModal";
 import { useTickets, Ticket } from "../../hooks/useTickets";
 import ActiveJobWidget from "../../components/ActiveJobWidget";
 import CompleteWalkInModal from "../../components/CompleteWalkInModal";
+import { useActiveJob } from "../../hooks/useActiveJob";
 import { useLocalSearchParams, useFocusEffect, router } from "expo-router";
 
 export default function DashboardScreen() {
@@ -36,6 +38,7 @@ export default function DashboardScreen() {
   const { engineers } = useEngineers();
   const { parts } = usePartsCatalog();
   const { tickets, loading: loadingTickets, refetchTickets } = useTickets();
+  const { completeActiveJob } = useActiveJob();
 
   const [modalVisible, setModalVisible] = useState(false);
   const [closeTicketModalVisible, setCloseTicketModalVisible] = useState(false);
@@ -157,6 +160,25 @@ export default function DashboardScreen() {
               if (t) {
                 setSelectedTicket(t);
                 setCloseTicketModalVisible(true);
+              } else {
+                Alert.alert(
+                  "Ticket Not Found",
+                  `Ticket for Bike ${job.bike_number_text} was not found (it may have already been resolved or deleted). Would you like to clear this active job?`,
+                  [
+                    { text: "Keep Active", style: "cancel" },
+                    {
+                      text: "Clear Active Job",
+                      style: "destructive",
+                      onPress: async () => {
+                        try {
+                          await completeActiveJob();
+                        } catch (err: any) {
+                          Alert.alert("Error", err.message || "Failed to clear active job");
+                        }
+                      },
+                    },
+                  ]
+                );
               }
             } else if (job.job_type === "walkin") {
               setActiveTab("walkins");
@@ -164,6 +186,25 @@ export default function DashboardScreen() {
               if (w) {
                 setSelectedWalkin(w);
                 setCompleteWalkInModalVisible(true);
+              } else {
+                Alert.alert(
+                  "Walk-in Not Found",
+                  `Walk-in for Bike ${job.bike_number_text} was not found (it may have already been completed or deleted). Would you like to clear this active job?`,
+                  [
+                    { text: "Keep Active", style: "cancel" },
+                    {
+                      text: "Clear Active Job",
+                      style: "destructive",
+                      onPress: async () => {
+                        try {
+                          await completeActiveJob();
+                        } catch (err: any) {
+                          Alert.alert("Error", err.message || "Failed to clear active job");
+                        }
+                      },
+                    },
+                  ]
+                );
               }
             } else if (job.job_type === "pdi") {
               router.push(`/pdi?action=complete&id=${job.job_id}`);

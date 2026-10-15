@@ -108,7 +108,7 @@ const styles = StyleSheet.create({
   idleTitle: { color: '#0f172a', fontWeight: 'bold', fontSize: 16 },
   idleSubtitle: { color: '#64748b', fontSize: 14 },
   activeContainer: { backgroundColor: '#ecfdf5', marginBottom: 16, padding: 20, borderRadius: 16, borderWidth: 1, borderColor: '#a7f3d0' },
-  activeHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 },
+  activeHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
   activeIconBg: { backgroundColor: '#d1fae5', padding: 10, borderRadius: 9999, marginRight: 12 },
   activeTitle: { color: '#064e3b', fontWeight: 'bold', fontSize: 16 },
   activeSubtitle: { color: '#047857', fontWeight: '600', marginTop: 2 },

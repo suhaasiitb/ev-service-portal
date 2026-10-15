@@ -415,13 +415,117 @@ export function useTechnicians() {
                     parts_used: Array.isArray(j.parts_used) ? j.parts_used : (j.parts_used ? [j.parts_used] : [])
                 }));
 
-                // Combine all jobs completed by this technician today
+                // Set to track consumed technician_jobs IDs when merged with walkin/repair/ticket records
+                const consumedTechJobIds = new Set();
+
+                // 1. Process Walk-Ins and merge with corresponding technician_jobs if present
+                const mergedWalkins = walkinsCompletedToday.map(w => {
+                    const matchedTj = techJobsCompletedToday.find(tj => {
+                        if (consumedTechJobIds.has(tj.id)) return false;
+                        const sameBike = (w.bike_number && tj.bike_number && w.bike_number !== "N/A" && w.bike_number === tj.bike_number) ||
+                                         (w.bike_id && tj.bike_id && w.bike_id === tj.bike_id);
+                        if (!sameBike) return false;
+                        
+                        const tjType = (tj.job_type || "").toLowerCase();
+                        return tjType.includes("walkin") || tjType.includes("walk-in") || tjType === "" || tjType === "repair / inspection";
+                    });
+
+                    if (matchedTj) {
+                        consumedTechJobIds.add(matchedTj.id);
+                        const hasTjDuration = matchedTj.duration && matchedTj.duration !== "-" && matchedTj.duration !== "Quick Service";
+                        return {
+                            id: `walkin-${w.id}`,
+                            bike_number: w.bike_number !== "N/A" ? w.bike_number : matchedTj.bike_number,
+                            bike_number_text: w.bike_number_text || matchedTj.bike_number_text,
+                            bike_id: w.bike_id || matchedTj.bike_id,
+                            job_type: w.job_type,
+                            started_at: matchedTj.started_at || w.started_at,
+                            completed_at: matchedTj.completed_at || w.completed_at,
+                            duration: hasTjDuration ? matchedTj.duration : w.duration,
+                            cost: w.cost || 0,
+                            parts_used: (w.parts_used && w.parts_used.length > 0) ? w.parts_used : (matchedTj.parts_used || [])
+                        };
+                    }
+
+                    return w;
+                });
+
+                // 2. Process Under Repair and merge with corresponding technician_jobs if present
+                const mergedUnderRepair = underRepairCompletedToday.map(ur => {
+                    const matchedTj = techJobsCompletedToday.find(tj => {
+                        if (consumedTechJobIds.has(tj.id)) return false;
+                        const sameBike = (ur.bike_number && tj.bike_number && ur.bike_number !== "N/A" && ur.bike_number === tj.bike_number) ||
+                                         (ur.bike_id && tj.bike_id && ur.bike_id === tj.bike_id);
+                        if (!sameBike) return false;
+
+                        const tjType = (tj.job_type || "").toLowerCase();
+                        return tjType.includes("repair") || tjType === "" || tjType === "repair / inspection";
+                    });
+
+                    if (matchedTj) {
+                        consumedTechJobIds.add(matchedTj.id);
+                        const hasTjDuration = matchedTj.duration && matchedTj.duration !== "-";
+                        return {
+                            id: `repair-${ur.id}`,
+                            bike_number: ur.bike_number !== "N/A" ? ur.bike_number : matchedTj.bike_number,
+                            bike_number_text: ur.bike_number_text || matchedTj.bike_number_text,
+                            bike_id: ur.bike_id || matchedTj.bike_id,
+                            job_type: ur.job_type,
+                            started_at: matchedTj.started_at || ur.started_at,
+                            completed_at: matchedTj.completed_at || ur.completed_at,
+                            duration: hasTjDuration ? matchedTj.duration : ur.duration,
+                            parts_used: (ur.parts_used && ur.parts_used.length > 0) ? ur.parts_used : (matchedTj.parts_used || [])
+                        };
+                    }
+
+                    return ur;
+                });
+
+                // 3. Process Tickets and merge with corresponding technician_jobs if present
+                const mergedTickets = ticketsCompletedToday.map(t => {
+                    const matchedTj = techJobsCompletedToday.find(tj => {
+                        if (consumedTechJobIds.has(tj.id)) return false;
+                        const sameBike = (t.bike_number && tj.bike_number && t.bike_number !== "N/A" && t.bike_number === tj.bike_number) ||
+                                         (t.bike_id && tj.bike_id && t.bike_id === tj.bike_id);
+                        if (!sameBike) return false;
+
+                        const tjType = (tj.job_type || "").toLowerCase();
+                        return tjType.includes("ticket");
+                    });
+
+                    if (matchedTj) {
+                        consumedTechJobIds.add(matchedTj.id);
+                        const hasTjDuration = matchedTj.duration && matchedTj.duration !== "-";
+                        return {
+                            id: `ticket-${t.id}`,
+                            bike_number: t.bike_number !== "N/A" ? t.bike_number : matchedTj.bike_number,
+                            bike_number_text: t.bike_number_text || matchedTj.bike_number_text,
+                            bike_id: t.bike_id || matchedTj.bike_id,
+                            job_type: t.job_type,
+                            started_at: matchedTj.started_at || t.started_at,
+                            completed_at: matchedTj.completed_at || t.completed_at,
+                            duration: hasTjDuration ? matchedTj.duration : t.duration,
+                            parts_used: t.parts_used || []
+                        };
+                    }
+
+                    return t;
+                });
+
+                // 4. Remaining technician_jobs that were NOT part of a walkin, under_repair, or ticket
+                const remainingTechJobs = techJobsCompletedToday.filter(tj => !consumedTechJobIds.has(tj.id));
+
+                // Combine and sort all unique completed jobs for this technician today
                 const allCompletedToday = [
-                    ...walkinsCompletedToday,
-                    ...underRepairCompletedToday,
-                    ...ticketsCompletedToday,
-                    ...techJobsCompletedToday
-                ];
+                    ...mergedWalkins,
+                    ...mergedUnderRepair,
+                    ...mergedTickets,
+                    ...remainingTechJobs
+                ].sort((a, b) => {
+                    const timeA = new Date(a.completed_at || a.started_at || 0).getTime();
+                    const timeB = new Date(b.completed_at || b.started_at || 0).getTime();
+                    return timeB - timeA;
+                });
 
                 // Shift timing assigned to technician
                 const assignedShift = getTechnicianShift(tech);

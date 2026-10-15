@@ -5,12 +5,14 @@ import {
   FlatList,
   ActivityIndicator,
   RefreshControl,
+  Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect, useLocalSearchParams, router } from "expo-router";
 import { useUnderRepair, RepairTicket } from "../../hooks/useUnderRepair";
 import { useEngineers } from "../../hooks/useEngineers";
 import { usePartsCatalog } from "../../hooks/usePartsCatalog";
+import { useActiveJob } from "../../hooks/useActiveJob";
 import RepairCard from "../../components/RepairCard";
 import CloseRepairModal from "../../components/CloseRepairModal";
 import ActiveJobWidget from "../../components/ActiveJobWidget";
@@ -23,6 +25,7 @@ export default function RepairScreen() {
   } = useUnderRepair();
   const { engineers } = useEngineers();
   const { parts } = usePartsCatalog();
+  const { completeActiveJob } = useActiveJob();
 
   const [closeRepairModalVisible, setCloseRepairModalVisible] = useState(false);
   const [selectedRepair, setSelectedRepair] = useState<RepairTicket | null>(
@@ -88,7 +91,24 @@ export default function RepairScreen() {
                 setSelectedRepair(r);
                 setCloseRepairModalVisible(true);
               } else {
-                router.push(`/repair?action=complete&id=${job.job_id}`);
+                Alert.alert(
+                  "Repair Job Not Found",
+                  `Repair job for Bike ${job.bike_number_text} was not found (it may have already been resolved or deleted). Would you like to clear this active job?`,
+                  [
+                    { text: "Keep Active", style: "cancel" },
+                    {
+                      text: "Clear Active Job",
+                      style: "destructive",
+                      onPress: async () => {
+                        try {
+                          await completeActiveJob();
+                        } catch (err: any) {
+                          Alert.alert("Error", err.message || "Failed to clear active job");
+                        }
+                      },
+                    },
+                  ]
+                );
               }
             }
           }}

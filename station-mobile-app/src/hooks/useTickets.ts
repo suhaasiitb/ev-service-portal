@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { Alert } from "react-native";
 import { supabase } from "../lib/supabase";
 
 export type Ticket = {
@@ -28,7 +27,7 @@ export function useTickets() {
       // 1. Get current session
       const { data: { session }, error: sessionErr } = await supabase.auth.getSession();
       if (!session?.user) {
-        Alert.alert("Debug", "No user session found " + JSON.stringify(sessionErr));
+        console.warn("No user session found", sessionErr);
         setLoading(false);
         return;
       }
@@ -41,13 +40,13 @@ export function useTickets() {
         .maybeSingle();
 
       if (userError) {
-        Alert.alert("Debug", "User Error: " + JSON.stringify(userError));
+        console.error("User Error:", userError);
         setLoading(false);
         return;
       }
       
       if (!userData?.station_id) {
-        Alert.alert("Debug", "User has no station_id assigned in users table");
+        console.warn("User has no station_id assigned in users table");
         setLoading(false);
         return;
       }
@@ -62,7 +61,7 @@ export function useTickets() {
         .maybeSingle();
 
       if (stationError) {
-        Alert.alert("Debug", "Station Error: " + JSON.stringify(stationError));
+        console.error("Station Error:", stationError);
         setLoading(false);
         return;
       }
@@ -88,13 +87,9 @@ export function useTickets() {
       const { data: ticketData, error: ticketError } = await query;
 
       if (ticketError) {
-        Alert.alert("Debug", "Ticket Fetch Error: " + JSON.stringify(ticketError));
+        console.error("Ticket Fetch Error:", ticketError);
         setLoading(false);
         return;
-      }
-      
-      if (!ticketData || ticketData.length === 0) {
-         Alert.alert("Debug", `0 tickets found. Your station_id: ${userStationId} | Name: ${stationName} | isNanded: ${isNanded}`);
       }
 
       const filteredTickets = (ticketData || []).filter(t => {

@@ -5,12 +5,14 @@ import {
   FlatList,
   ActivityIndicator,
   RefreshControl,
+  Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect, useLocalSearchParams, router } from "expo-router";
 import { usePdiRequests, PdiRequest } from "../../hooks/usePdiRequests";
 import { useEngineers } from "../../hooks/useEngineers";
 import { usePartsCatalog } from "../../hooks/usePartsCatalog";
+import { useActiveJob } from "../../hooks/useActiveJob";
 import PdiCard from "../../components/PdiCard";
 import CompletePdiModal from "../../components/CompletePdiModal";
 import ActiveJobWidget from "../../components/ActiveJobWidget";
@@ -19,6 +21,7 @@ export default function PDIScreen() {
   const { pdiRequests, loading: loadingPdi, refetchPdi } = usePdiRequests();
   const { engineers } = useEngineers();
   const { parts } = usePartsCatalog();
+  const { completeActiveJob } = useActiveJob();
 
   const [completePdiModalVisible, setCompletePdiModalVisible] = useState(false);
   const [selectedPdi, setSelectedPdi] = useState<PdiRequest | null>(null);
@@ -80,7 +83,24 @@ export default function PDIScreen() {
                 setSelectedPdi(p);
                 setCompletePdiModalVisible(true);
               } else {
-                router.push(`/pdi?action=complete&id=${job.job_id}`);
+                Alert.alert(
+                  "PDI Request Not Found",
+                  `This PDI request for Bike ${job.bike_number_text} was not found (it may have been deleted or completed). Would you like to clear this active job?`,
+                  [
+                    { text: "Keep Active", style: "cancel" },
+                    {
+                      text: "Clear Active Job",
+                      style: "destructive",
+                      onPress: async () => {
+                        try {
+                          await completeActiveJob();
+                        } catch (err: any) {
+                          Alert.alert("Error", err.message || "Failed to clear active job");
+                        }
+                      },
+                    },
+                  ]
+                );
               }
             } else if (job.job_type === "repair") {
               router.push(`/repair?action=complete&id=${job.job_id}`);
