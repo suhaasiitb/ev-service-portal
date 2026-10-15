@@ -60,10 +60,6 @@ export default function TechnicianRosterTab({
     };
 
     const [searchQuery, setSearchQuery] = useState("");
-    const [stationFilter, setStationFilter] = useState("all");
-    const [jobStatusFilter, setJobStatusFilter] = useState("all");
-    const [attendanceFilter, setAttendanceFilter] = useState("all");
-    const [shiftFilter, setShiftFilter] = useState("all");
     const [configModalTech, setConfigModalTech] = useState(null); // Technician being edited
     const [jobsModalTech, setJobsModalTech] = useState(null); // Technician whose jobs are viewed in popup
     const [saveFeedback, setSaveFeedback] = useState({}); // { [techId]: 'success' | 'error' }
@@ -113,38 +109,6 @@ export default function TechnicianRosterTab({
             const matchesPhone = tech.phone?.includes(query);
             const matchesStation = tech.station?.name?.toLowerCase().includes(query);
             if (!matchesName && !matchesEmail && !matchesPhone && !matchesStation) return false;
-        }
-
-        // Station filter
-        if (stationFilter !== "all") {
-            if (stationFilter === "unassigned") {
-                if (tech.station_id) return false;
-            } else {
-                if (tech.station_id !== stationFilter) return false;
-            }
-        }
-
-        // Job Status filter (on_job vs idle)
-        if (jobStatusFilter !== "all") {
-            if (jobStatusFilter === "on_job") {
-                if (!tech.is_on_job) return false;
-            } else if (jobStatusFilter === "idle") {
-                if (tech.is_on_job) return false;
-            }
-        }
-
-        // Attendance Filter (logged vs not_logged)
-        if (attendanceFilter !== "all") {
-            if (attendanceFilter === "logged") {
-                if (!tech.has_logged_today) return false;
-            } else if (attendanceFilter === "not_logged") {
-                if (tech.has_logged_today) return false;
-            }
-        }
-
-        // Shift Filter
-        if (shiftFilter !== "all") {
-            if (tech.assigned_shift !== shiftFilter) return false;
         }
 
         return true;
@@ -236,7 +200,7 @@ export default function TechnicianRosterTab({
                             placeholder="🔍 Search technician name, email, phone..."
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            className="px-4 py-2 border border-gray-300 rounded-lg text-sm w-full md:w-64 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                            className="px-4 py-2 border border-gray-300 rounded-lg text-sm w-full md:w-80 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                         />
 
                         {/* Date Filter Controls */}
@@ -275,53 +239,6 @@ export default function TechnicianRosterTab({
                                 </button>
                             )}
                         </div>
-
-                        {/* Attendance Filter */}
-                        <select
-                            value={attendanceFilter}
-                            onChange={(e) => setAttendanceFilter(e.target.value)}
-                            className="px-3.5 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white font-medium"
-                        >
-                            <option value="all">All Attendance</option>
-                            <option value="logged">{isSelectedToday ? "✅ Logged Today" : "✅ Present on Date"}</option>
-                            <option value="not_logged">{isSelectedToday ? "❌ Not Logged Today" : "❌ Absent on Date"}</option>
-                        </select>
-
-                        {/* Job Activity Filter */}
-                        <select
-                            value={jobStatusFilter}
-                            onChange={(e) => setJobStatusFilter(e.target.value)}
-                            className="px-3.5 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white font-medium"
-                        >
-                            <option value="all">All Job Statuses</option>
-                            <option value="on_job">⚡ On a Job</option>
-                            <option value="idle">☕ Idle</option>
-                        </select>
-
-                        {/* Station Filter */}
-                        <select
-                            value={stationFilter}
-                            onChange={(e) => setStationFilter(e.target.value)}
-                            className="px-3.5 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white font-medium"
-                        >
-                            <option value="all">All Stations</option>
-                            <option value="unassigned">Unassigned Only</option>
-                            {stations.map(st => (
-                                <option key={st.id} value={st.id}>{st.name}</option>
-                            ))}
-                        </select>
-
-                        {/* Shift Timing Filter */}
-                        <select
-                            value={shiftFilter}
-                            onChange={(e) => setShiftFilter(e.target.value)}
-                            className="px-3.5 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white font-medium"
-                        >
-                            <option value="all">All Shifts (10 hrs)</option>
-                            {STANDARD_SHIFTS.map(s => (
-                                <option key={s.id} value={s.id}>{s.label}</option>
-                            ))}
-                        </select>
                     </div>
 
                     <div className="text-xs text-gray-500 font-medium">
