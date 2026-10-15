@@ -13,7 +13,9 @@ const normalizePhone = (p) => {
     return digits.length > 10 ? digits.slice(-10) : digits;
 };
 
-export function useTechnicians() {
+export function useTechnicians(initialDate = null) {
+    const todayDefault = new Date().toLocaleDateString('en-CA');
+    const [selectedDate, setSelectedDate] = useState(initialDate || todayDefault);
     const [technicians, setTechnicians] = useState([]);
     const [stations, setStations] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -21,10 +23,14 @@ export function useTechnicians() {
     const [updatingId, setUpdatingId] = useState(null);
     const [updatingShiftId, setUpdatingShiftId] = useState(null);
 
-    async function fetchTechniciansAndStations() {
+    async function fetchTechniciansAndStations(overrideDate) {
         setLoading(true);
         setError(null);
         try {
+            const targetDateStr = overrideDate || selectedDate || todayDefault;
+            const localTodayStr = new Date().toLocaleDateString('en-CA');
+            const utcTodayStr = new Date().toISOString().split("T")[0];
+            const isCurrentDay = (targetDateStr === localTodayStr || targetDateStr === utcTodayStr);
             // 1. Fetch all stations
             const { data: stationsData, error: stationsError } = await supabase
                 .from("stations")
@@ -226,17 +232,20 @@ export function useTechnicians() {
                 console.warn("Could not query technician_jobs:", jErr);
             }
 
-            // 10. Fetch today's attendance records
-            const localTodayStr = new Date().toLocaleDateString('en-CA');
-            const utcTodayStr = new Date().toISOString().split("T")[0];
-            const todayStr = localTodayStr;
-
+            // 10. Fetch attendance records for target date
             let attendanceData = [];
             try {
-                const { data: attData, error: attError } = await supabase
+                let attQuery = supabase
                     .from("technician_attendance")
-                    .select("id, technician_id, date, check_in_time, check_out_time, approval_status")
-                    .or(`date.eq.${localTodayStr},date.eq.${utcTodayStr}`);
+                    .select("id, technician_id, date, check_in_time, check_out_time, approval_status");
+                
+                if (isCurrentDay) {
+                    attQuery = attQuery.or(`date.eq.${localTodayStr},date.eq.${utcTodayStr}`);
+                } else {
+                    attQuery = attQuery.eq("date", targetDateStr);
+                }
+
+                const { data: attData, error: attError } = await attQuery;
                 if (!attError) {
                     attendanceData = attData || [];
                 }
@@ -244,20 +253,24 @@ export function useTechnicians() {
                 console.warn("Could not query technician_attendance:", aErr);
             }
 
-            // Helper to check if a timestamp or date string is from today
-            const isToday = (dateVal) => {
+            // Helper to check if a timestamp or date string is from targetDateStr
+            const matchesTargetDate = (dateVal) => {
                 if (!dateVal) return false;
                 const d = new Date(dateVal);
                 if (!isNaN(d.getTime())) {
                     const local = d.toLocaleDateString("en-CA");
                     const utc = d.toISOString().split("T")[0];
-                    if (local === localTodayStr || utc === utcTodayStr || local === utcTodayStr || utc === localTodayStr) {
+                    if (local === targetDateStr || utc === targetDateStr) {
+                        return true;
+                    }
+                    if (isCurrentDay && (local === utcTodayStr || utc === localTodayStr)) {
                         return true;
                     }
                 }
                 if (typeof dateVal === "string") {
                     const prefix = dateVal.slice(0, 10);
-                    if (prefix === localTodayStr || prefix === utcTodayStr) return true;
+                    if (prefix === targetDateStr) return true;
+                    if (isCurrentDay && (prefix === localTodayStr || prefix === utcTodayStr)) return true;
                 }
                 return false;
             };
@@ -321,36 +334,39 @@ export function useTechnicians() {
                 const matchedStation = validStations.find(s => s.id === tech.station_id);
                 const techIds = getMatchingIds(tech);
 
-                // Find if technician currently has an active job
-                let activeJob = jobsData.find(j => 
-                    (techIds.has(j.technician_id) || j.technician_id === tech.id) && 
-                    (!j.completed_at && j.status !== 'completed' && j.status !== 'cancelled')
-                );
-
-                if (!activeJob) {
-                    const openRepair = underRepairData.find(ur => 
-                        (techIds.has(ur.serviced_by) || ur.serviced_by === tech.id) && 
-                        !ur.close_date && 
-                        ur.status !== 'closed' && 
-                        ur.status !== 'completed'
+                // Find if technician currently has an active job (only for current day)
+                let activeJob = null;
+                if (isCurrentDay) {
+                    activeJob = jobsData.find(j => 
+                        (techIds.has(j.technician_id) || j.technician_id === tech.id) && 
+                        (!j.completed_at && j.status !== 'completed' && j.status !== 'cancelled')
                     );
-                    if (openRepair) {
-                        activeJob = {
-                            id: `repair-${openRepair.id}`,
-                            bike_number: resolveBikeNumber(null, openRepair.bike_id, openRepair.bikes),
-                            job_type: "Under Repair",
-                            started_at: openRepair.date_raised
-                        };
+
+                    if (!activeJob) {
+                        const openRepair = underRepairData.find(ur => 
+                            (techIds.has(ur.serviced_by) || ur.serviced_by === tech.id) && 
+                            !ur.close_date && 
+                            ur.status !== 'closed' && 
+                            ur.status !== 'completed'
+                        );
+                        if (openRepair) {
+                            activeJob = {
+                                id: `repair-${openRepair.id}`,
+                                bike_number: resolveBikeNumber(null, openRepair.bike_id, openRepair.bikes),
+                                job_type: "Under Repair",
+                                started_at: openRepair.date_raised
+                            };
+                        }
                     }
                 }
 
-                // Find today's attendance log
+                // Find attendance log for the target date
                 const todayAttendance = attendanceData.find(a => techIds.has(a.technician_id) || a.technician_id === tech.id);
 
-                // 1. Completed walk-in jobs today
+                // 1. Completed walk-in jobs on target date
                 const walkinsCompletedToday = walkinsData.filter(w => {
                     if (!techIds.has(w.engineer_id) && w.engineer_id !== tech.id) return false;
-                    return isToday(w.logged_at);
+                    return matchesTargetDate(w.logged_at);
                 }).map(w => ({
                     id: `walkin-${w.id}`,
                     bike_number: resolveBikeNumber(w.bike_number_text, w.bike_id, w.bikes),
@@ -364,11 +380,11 @@ export function useTechnicians() {
                     parts_used: walkinPartsMap[w.id] || []
                 }));
 
-                // 2. Completed repairs from under_repair table today
+                // 2. Completed repairs from under_repair table on target date
                 const underRepairCompletedToday = underRepairData.filter(ur => {
                     if (!techIds.has(ur.serviced_by) && ur.serviced_by !== tech.id) return false;
                     if (!ur.close_date) return false;
-                    return isToday(ur.close_date);
+                    return matchesTargetDate(ur.close_date);
                 }).map(ur => ({
                     id: `repair-${ur.id}`,
                     bike_number: resolveBikeNumber(null, ur.bike_id, ur.bikes),
@@ -381,11 +397,11 @@ export function useTechnicians() {
                     parts_used: Array.isArray(ur.parts_used) ? ur.parts_used : []
                 }));
 
-                // 3. Completed tickets today
+                // 3. Completed tickets on target date
                 const ticketsCompletedToday = ticketsData.filter(t => {
                     if (!techIds.has(t.closed_by) && t.closed_by !== tech.id) return false;
                     if (!t.closed_at) return false;
-                    return isToday(t.closed_at);
+                    return matchesTargetDate(t.closed_at);
                 }).map(t => ({
                     id: `ticket-${t.id}`,
                     bike_number: resolveBikeNumber(t.bike_number_text, t.bike_id, t.bikes),
@@ -398,12 +414,12 @@ export function useTechnicians() {
                     parts_used: []
                 }));
 
-                // 4. Completed jobs from technician_jobs table today
+                // 4. Completed jobs from technician_jobs table on target date
                 const techJobsCompletedToday = jobsData.filter(j => {
                     if (!techIds.has(j.technician_id) && j.technician_id !== tech.id) return false;
                     const isCompletedStatus = j.status === 'completed' || (!j.status && j.completed_at);
                     if (!isCompletedStatus || !j.completed_at) return false;
-                    return isToday(j.completed_at);
+                    return matchesTargetDate(j.completed_at);
                 }).map(j => ({
                     id: `job-${j.id}`,
                     bike_number: resolveBikeNumber(j.bike_number_text || j.bike_number, j.bike_id, j.bikes),
@@ -530,9 +546,9 @@ export function useTechnicians() {
                 // Shift timing assigned to technician
                 const assignedShift = getTechnicianShift(tech);
 
-                // Shift evaluation for today's attendance
+                // Shift evaluation for attendance on target date
                 const checkInAdherence = todayAttendance?.check_in_time 
-                    ? evaluateCheckInAdherence(todayAttendance.check_in_time, assignedShift, todayStr)
+                    ? evaluateCheckInAdherence(todayAttendance.check_in_time, assignedShift, targetDateStr)
                     : null;
                 const shiftDuration = todayAttendance?.check_in_time
                     ? evaluateShiftDuration(todayAttendance.check_in_time, todayAttendance.check_out_time)
@@ -549,7 +565,9 @@ export function useTechnicians() {
                     has_logged_today: !!todayAttendance,
                     today_attendance: todayAttendance || null,
                     check_in_adherence: checkInAdherence,
-                    shift_duration: shiftDuration
+                    shift_duration: shiftDuration,
+                    is_current_day: isCurrentDay,
+                    selected_date: targetDateStr
                 };
             });
 
@@ -671,35 +689,35 @@ export function useTechnicians() {
     };
 
     useEffect(() => {
-        fetchTechniciansAndStations();
+        fetchTechniciansAndStations(selectedDate);
 
         // Subscribe to realtime changes on technician_jobs, under_repair, technician_attendance, walkins, and tickets
         const channel = supabase
             .channel("technician_management_realtime")
             .on("postgres_changes", { event: "*", schema: "public", table: "technician_jobs" }, () => {
-                fetchTechniciansAndStations();
+                fetchTechniciansAndStations(selectedDate);
             })
             .on("postgres_changes", { event: "*", schema: "public", table: "under_repair" }, () => {
-                fetchTechniciansAndStations();
+                fetchTechniciansAndStations(selectedDate);
             })
             .on("postgres_changes", { event: "*", schema: "public", table: "technician_attendance" }, () => {
-                fetchTechniciansAndStations();
+                fetchTechniciansAndStations(selectedDate);
             })
             .on("postgres_changes", { event: "*", schema: "public", table: "walkins" }, () => {
-                fetchTechniciansAndStations();
+                fetchTechniciansAndStations(selectedDate);
             })
             .on("postgres_changes", { event: "*", schema: "public", table: "walkin_parts" }, () => {
-                fetchTechniciansAndStations();
+                fetchTechniciansAndStations(selectedDate);
             })
             .on("postgres_changes", { event: "*", schema: "public", table: "tickets" }, () => {
-                fetchTechniciansAndStations();
+                fetchTechniciansAndStations(selectedDate);
             })
             .subscribe();
 
         return () => {
             supabase.removeChannel(channel);
         };
-    }, []);
+    }, [selectedDate]);
 
     return {
         technicians,
@@ -708,7 +726,9 @@ export function useTechnicians() {
         error,
         updatingId,
         updatingShiftId,
-        refetchTechnicians: fetchTechniciansAndStations,
+        selectedDate,
+        setSelectedDate,
+        refetchTechnicians: () => fetchTechniciansAndStations(selectedDate),
         updateTechnicianStation,
         updateTechnicianShift
     };

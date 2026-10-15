@@ -13,7 +13,17 @@ export default function TechnicianManagementPage({ session }) {
     const { attendance, pendingCount, loading: loadingAttendance, approveAttendance, disapproveAttendance } = useTechnicianAttendance(null);
     
     // Technicians roster & station tagging data
-    const { technicians, stations, loading: loadingTechnicians, updatingId, updatingShiftId, updateTechnicianStation, updateTechnicianShift } = useTechnicians();
+    const { 
+        technicians, 
+        stations, 
+        loading: loadingTechnicians, 
+        updatingId, 
+        updatingShiftId, 
+        selectedDate, 
+        setSelectedDate, 
+        updateTechnicianStation, 
+        updateTechnicianShift 
+    } = useTechnicians();
 
     // Active Tab: 'roster' (Technicians & Tagged Stations), 'pending' (Pending Approvals), 'history' (Attendance History)
     const [activeTab, setActiveTab] = useState("roster");
@@ -118,6 +128,8 @@ export default function TechnicianManagementPage({ session }) {
                             loading={loadingTechnicians}
                             updatingId={updatingId}
                             updatingShiftId={updatingShiftId}
+                            selectedDate={selectedDate}
+                            onDateChange={setSelectedDate}
                             onUpdateStation={updateTechnicianStation}
                             onUpdateShift={updateTechnicianShift}
                         />

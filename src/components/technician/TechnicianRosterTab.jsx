@@ -25,9 +25,40 @@ export default function TechnicianRosterTab({
     loading, 
     updatingId, 
     updatingShiftId, 
+    selectedDate,
+    onDateChange,
     onUpdateStation,
     onUpdateShift 
 }) {
+    const localToday = new Date().toLocaleDateString('en-CA');
+    const isSelectedToday = !selectedDate || selectedDate === localToday;
+
+    const formatDateDisplay = (dateStr) => {
+        if (!dateStr || dateStr === localToday) return "Today";
+        const d = new Date(dateStr + "T00:00:00");
+        return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+    };
+
+    const handlePrevDay = () => {
+        if (!onDateChange) return;
+        const current = selectedDate || localToday;
+        const d = new Date(current + "T00:00:00");
+        d.setDate(d.getDate() - 1);
+        onDateChange(d.toLocaleDateString('en-CA'));
+    };
+
+    const handleNextDay = () => {
+        if (!onDateChange) return;
+        const current = selectedDate || localToday;
+        const d = new Date(current + "T00:00:00");
+        d.setDate(d.getDate() + 1);
+        onDateChange(d.toLocaleDateString('en-CA'));
+    };
+
+    const handleTodayReset = () => {
+        if (onDateChange) onDateChange(localToday);
+    };
+
     const [searchQuery, setSearchQuery] = useState("");
     const [stationFilter, setStationFilter] = useState("all");
     const [jobStatusFilter, setJobStatusFilter] = useState("all");
@@ -124,6 +155,7 @@ export default function TechnicianRosterTab({
     const onJobCount = technicians.filter(t => t.is_on_job).length;
     const loggedTodayCount = technicians.filter(t => t.has_logged_today).length;
     const notLoggedTodayCount = totalCount - loggedTodayCount;
+    const totalCompletedJobs = technicians.reduce((sum, t) => sum + (t.completed_jobs_today_count || 0), 0);
 
     if (loading) {
         return (
@@ -137,7 +169,7 @@ export default function TechnicianRosterTab({
         <div className="space-y-6">
             {/* Quick Stats Bar */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div className="bg-white border border-gray-200 rounded-xl p-4 flex items-center justify-between">
+                <div className="bg-white border border-gray-200 rounded-xl p-4 flex items-center justify-between shadow-2xs">
                     <div>
                         <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Total Technicians</div>
                         <div className="text-2xl font-bold text-gray-900 mt-1">{totalCount}</div>
@@ -147,9 +179,11 @@ export default function TechnicianRosterTab({
                     </div>
                 </div>
 
-                <div className="bg-green-50 border border-green-200 rounded-xl p-4 flex items-center justify-between">
+                <div className="bg-green-50 border border-green-200 rounded-xl p-4 flex items-center justify-between shadow-2xs">
                     <div>
-                        <div className="text-xs font-semibold text-green-700 uppercase tracking-wider">Logged Today</div>
+                        <div className="text-xs font-semibold text-green-700 uppercase tracking-wider">
+                            {isSelectedToday ? "Logged Today" : "Present on Date"}
+                        </div>
                         <div className="text-2xl font-bold text-green-700 mt-1">{loggedTodayCount}</div>
                     </div>
                     <div className="w-10 h-10 rounded-lg bg-green-100 text-green-700 flex items-center justify-center font-bold text-lg">
@@ -157,9 +191,11 @@ export default function TechnicianRosterTab({
                     </div>
                 </div>
 
-                <div className="bg-rose-50 border border-rose-200 rounded-xl p-4 flex items-center justify-between">
+                <div className="bg-rose-50 border border-rose-200 rounded-xl p-4 flex items-center justify-between shadow-2xs">
                     <div>
-                        <div className="text-xs font-semibold text-rose-700 uppercase tracking-wider">Not Logged Today</div>
+                        <div className="text-xs font-semibold text-rose-700 uppercase tracking-wider">
+                            {isSelectedToday ? "Not Logged Today" : "Absent on Date"}
+                        </div>
                         <div className="text-2xl font-bold text-rose-700 mt-1">{notLoggedTodayCount}</div>
                     </div>
                     <div className="w-10 h-10 rounded-lg bg-rose-100 text-rose-700 flex items-center justify-center font-bold text-lg">
@@ -167,15 +203,27 @@ export default function TechnicianRosterTab({
                     </div>
                 </div>
 
-                <div className="bg-purple-50 border border-purple-200 rounded-xl p-4 flex items-center justify-between">
-                    <div>
-                        <div className="text-xs font-semibold text-purple-700 uppercase tracking-wider">On a Job</div>
-                        <div className="text-2xl font-bold text-purple-700 mt-1">{onJobCount}</div>
+                {isSelectedToday ? (
+                    <div className="bg-purple-50 border border-purple-200 rounded-xl p-4 flex items-center justify-between shadow-2xs">
+                        <div>
+                            <div className="text-xs font-semibold text-purple-700 uppercase tracking-wider">On a Job</div>
+                            <div className="text-2xl font-bold text-purple-700 mt-1">{onJobCount}</div>
+                        </div>
+                        <div className="w-10 h-10 rounded-lg bg-purple-100 text-purple-700 flex items-center justify-center font-bold text-lg">
+                            ⚡
+                        </div>
                     </div>
-                    <div className="w-10 h-10 rounded-lg bg-purple-100 text-purple-700 flex items-center justify-center font-bold text-lg">
-                        ⚡
+                ) : (
+                    <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-4 flex items-center justify-between shadow-2xs">
+                        <div>
+                            <div className="text-xs font-semibold text-indigo-700 uppercase tracking-wider">Jobs Completed</div>
+                            <div className="text-2xl font-bold text-indigo-700 mt-1">{totalCompletedJobs}</div>
+                        </div>
+                        <div className="w-10 h-10 rounded-lg bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold text-lg">
+                            🛠️
+                        </div>
                     </div>
-                </div>
+                )}
             </div>
 
             {/* Table Container */}
@@ -188,25 +236,62 @@ export default function TechnicianRosterTab({
                             placeholder="🔍 Search technician name, email, phone..."
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            className="px-4 py-2 border border-gray-300 rounded-lg text-sm w-full md:w-72 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                            className="px-4 py-2 border border-gray-300 rounded-lg text-sm w-full md:w-64 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                         />
 
-                        {/* Today's Attendance Filter */}
+                        {/* Date Filter Controls */}
+                        <div className="flex items-center gap-1 bg-white border border-gray-300 rounded-lg px-2.5 py-1.5 shadow-2xs">
+                            <span className="text-sm mr-1">📅</span>
+                            <button
+                                type="button"
+                                onClick={handlePrevDay}
+                                className="w-6 h-6 rounded flex items-center justify-center text-gray-500 hover:text-gray-900 hover:bg-gray-100 text-xs font-bold transition-colors cursor-pointer"
+                                title="Previous Day"
+                            >
+                                ◀
+                            </button>
+                            <input
+                                type="date"
+                                value={selectedDate || localToday}
+                                onChange={(e) => onDateChange && onDateChange(e.target.value)}
+                                className="text-xs font-bold text-gray-800 bg-transparent focus:outline-none cursor-pointer"
+                            />
+                            <button
+                                type="button"
+                                onClick={handleNextDay}
+                                className="w-6 h-6 rounded flex items-center justify-center text-gray-500 hover:text-gray-900 hover:bg-gray-100 text-xs font-bold transition-colors cursor-pointer"
+                                title="Next Day"
+                            >
+                                ▶
+                            </button>
+                            {!isSelectedToday && (
+                                <button
+                                    type="button"
+                                    onClick={handleTodayReset}
+                                    className="ml-1.5 px-2 py-0.5 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded text-[11px] font-bold transition-colors cursor-pointer"
+                                    title="Reset to Today"
+                                >
+                                    Today
+                                </button>
+                            )}
+                        </div>
+
+                        {/* Attendance Filter */}
                         <select
                             value={attendanceFilter}
                             onChange={(e) => setAttendanceFilter(e.target.value)}
-                            className="px-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white font-medium"
+                            className="px-3.5 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white font-medium"
                         >
                             <option value="all">All Attendance</option>
-                            <option value="logged">✅ Logged Today</option>
-                            <option value="not_logged">❌ Not Logged Today</option>
+                            <option value="logged">{isSelectedToday ? "✅ Logged Today" : "✅ Present on Date"}</option>
+                            <option value="not_logged">{isSelectedToday ? "❌ Not Logged Today" : "❌ Absent on Date"}</option>
                         </select>
 
                         {/* Job Activity Filter */}
                         <select
                             value={jobStatusFilter}
                             onChange={(e) => setJobStatusFilter(e.target.value)}
-                            className="px-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white font-medium"
+                            className="px-3.5 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white font-medium"
                         >
                             <option value="all">All Job Statuses</option>
                             <option value="on_job">⚡ On a Job</option>
@@ -217,7 +302,7 @@ export default function TechnicianRosterTab({
                         <select
                             value={stationFilter}
                             onChange={(e) => setStationFilter(e.target.value)}
-                            className="px-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white font-medium"
+                            className="px-3.5 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white font-medium"
                         >
                             <option value="all">All Stations</option>
                             <option value="unassigned">Unassigned Only</option>
@@ -230,7 +315,7 @@ export default function TechnicianRosterTab({
                         <select
                             value={shiftFilter}
                             onChange={(e) => setShiftFilter(e.target.value)}
-                            className="px-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white font-medium"
+                            className="px-3.5 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white font-medium"
                         >
                             <option value="all">All Shifts (10 hrs)</option>
                             {STANDARD_SHIFTS.map(s => (
@@ -250,10 +335,16 @@ export default function TechnicianRosterTab({
                         <thead className="bg-slate-50/90 border-b border-gray-200">
                             <tr>
                                 <th className="px-6 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider text-left">Technician</th>
-                                <th className="px-4 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider text-center">Today's Attendance</th>
+                                <th className="px-4 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider text-center">
+                                    {isSelectedToday ? "Today's Attendance" : `Attendance (${formatDateDisplay(selectedDate)})`}
+                                </th>
                                 <th className="px-4 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider text-center">Shift Tracking</th>
-                                <th className="px-4 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider text-center">Job Status</th>
-                                <th className="px-4 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider text-center">Jobs Done Today</th>
+                                <th className="px-4 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider text-center">
+                                    {isSelectedToday ? "Job Status" : "Work Status"}
+                                </th>
+                                <th className="px-4 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider text-center">
+                                    {isSelectedToday ? "Jobs Done Today" : `Jobs Done (${formatDateDisplay(selectedDate)})`}
+                                </th>
                                 <th className="px-4 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider text-center">Actions</th>
                             </tr>
                         </thead>
@@ -303,7 +394,7 @@ export default function TechnicianRosterTab({
                                                         <>
                                                             <span className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 shadow-2xs">
                                                                 <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-                                                                Logged In
+                                                                {isSelectedToday ? "Logged In" : "Present"}
                                                             </span>
                                                             {tech.today_attendance?.check_in_time && (
                                                                 <span className="text-[11px] text-gray-500 font-medium">
@@ -314,7 +405,7 @@ export default function TechnicianRosterTab({
                                                     ) : (
                                                         <span className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full text-xs font-semibold bg-rose-50 text-rose-600 border border-rose-200/80 shadow-2xs">
                                                             <span className="w-2 h-2 rounded-full bg-rose-500"></span>
-                                                            Not Logged
+                                                            {isSelectedToday ? "Not Logged" : "Absent"}
                                                         </span>
                                                     )}
                                                 </div>
@@ -339,7 +430,9 @@ export default function TechnicianRosterTab({
                                                             )}
                                                         </>
                                                     ) : (
-                                                        <span className="text-xs text-gray-400 font-medium italic">Pending Login</span>
+                                                        <span className="text-xs text-gray-400 font-medium italic">
+                                                            {isSelectedToday ? "Pending Login" : "No Attendance"}
+                                                        </span>
                                                     )}
                                                 </div>
                                             </td>
@@ -347,24 +440,43 @@ export default function TechnicianRosterTab({
                                             {/* Job Status Column with Elapsed Duration (Centered) */}
                                             <td className="px-4 py-4 text-center align-middle">
                                                 <div className="flex flex-col items-center justify-center gap-1">
-                                                    {tech.is_on_job ? (
-                                                        <>
-                                                            <span className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full text-xs font-semibold bg-purple-50 text-purple-700 border border-purple-200 shadow-2xs">
-                                                                <span className="w-2 h-2 rounded-full bg-purple-600 animate-pulse"></span>
-                                                                On a Job {tech.current_job?.job_type ? `(${tech.current_job.job_type})` : ''}
-                                                            </span>
-                                                            {tech.current_job?.started_at && (
-                                                                <span className="text-[11px] text-purple-700 font-medium flex items-center gap-1">
-                                                                    <span>⏱️</span>
-                                                                    <span>Active for {getElapsedTime(tech.current_job.started_at)}</span>
+                                                    {isSelectedToday ? (
+                                                        tech.is_on_job ? (
+                                                            <>
+                                                                <span className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full text-xs font-semibold bg-purple-50 text-purple-700 border border-purple-200 shadow-2xs">
+                                                                    <span className="w-2 h-2 rounded-full bg-purple-600 animate-pulse"></span>
+                                                                    On a Job {tech.current_job?.job_type ? `(${tech.current_job.job_type})` : ''}
                                                                 </span>
-                                                            )}
-                                                        </>
+                                                                {tech.current_job?.started_at && (
+                                                                    <span className="text-[11px] text-purple-700 font-medium flex items-center gap-1">
+                                                                        <span>⏱️</span>
+                                                                        <span>Active for {getElapsedTime(tech.current_job.started_at)}</span>
+                                                                    </span>
+                                                                )}
+                                                            </>
+                                                        ) : (
+                                                            <span className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-600 border border-gray-200 shadow-2xs">
+                                                                <span className="w-2 h-2 rounded-full bg-gray-400"></span>
+                                                                Idle
+                                                            </span>
+                                                        )
                                                     ) : (
-                                                        <span className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-600 border border-gray-200 shadow-2xs">
-                                                            <span className="w-2 h-2 rounded-full bg-gray-400"></span>
-                                                            Idle
-                                                        </span>
+                                                        tech.completed_jobs_today_count > 0 ? (
+                                                            <span className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 shadow-2xs">
+                                                                <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                                                                Completed {tech.completed_jobs_today_count} {tech.completed_jobs_today_count === 1 ? 'job' : 'jobs'}
+                                                            </span>
+                                                        ) : tech.has_logged_today ? (
+                                                            <span className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200 shadow-2xs">
+                                                                <span className="w-2 h-2 rounded-full bg-blue-500"></span>
+                                                                Present
+                                                            </span>
+                                                        ) : (
+                                                            <span className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-500 border border-gray-200 shadow-2xs">
+                                                                <span className="w-2 h-2 rounded-full bg-gray-400"></span>
+                                                                Absent
+                                                            </span>
+                                                        )
                                                     )}
                                                 </div>
                                             </td>
@@ -540,13 +652,13 @@ export default function TechnicianRosterTab({
                                 </div>
                                 <div>
                                     <h3 className="font-bold text-gray-900 text-base flex items-center gap-2">
-                                        Jobs Done Today: {jobsModalTech.name || "Technician"}
+                                        Jobs Done: {jobsModalTech.name || "Technician"}
                                         <span className="bg-blue-100 text-blue-800 text-xs px-2.5 py-0.5 rounded-full font-bold">
                                             {jobsModalTech.completed_jobs_today_count || 0} Total
                                         </span>
                                     </h3>
                                     <p className="text-xs text-gray-500 mt-0.5">
-                                        Completed repairs and service logs for today ({new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })})
+                                        Completed repairs and service logs for {formatDateDisplay(selectedDate)}
                                     </p>
                                 </div>
                             </div>
@@ -563,8 +675,10 @@ export default function TechnicianRosterTab({
                             {!jobsModalTech.completed_jobs_today || jobsModalTech.completed_jobs_today.length === 0 ? (
                                 <div className="p-12 text-center bg-gray-50 rounded-xl border border-dashed border-gray-200">
                                     <div className="text-3xl mb-2">☕</div>
-                                    <p className="text-sm font-bold text-gray-700">No jobs completed today</p>
-                                    <p className="text-xs text-gray-500 mt-1">This technician hasn't completed any repair jobs on the current day yet.</p>
+                                    <p className="text-sm font-bold text-gray-700">No jobs completed on this date</p>
+                                    <p className="text-xs text-gray-500 mt-1">
+                                        This technician has no completed repair jobs recorded for {formatDateDisplay(selectedDate)}.
+                                    </p>
                                 </div>
                             ) : (
                                 <div className="overflow-x-auto rounded-xl border border-gray-200">
