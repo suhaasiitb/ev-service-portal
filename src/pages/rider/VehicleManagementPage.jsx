@@ -16,6 +16,8 @@ export default function VehicleManagementPage({ session }) {
 
     const [stations, setStations] = useState([]);
     const [searchTerm, setSearchTerm] = useState("");
+    const [statusFilter, setStatusFilter] = useState("all"); // 'all' | 'active' | 'idle'
+    const [activeFirst, setActiveFirst] = useState(true); // Toggle to place active/assigned vehicles first
     const [showAssignModal, setShowAssignModal] = useState(false);
     const [showUnassignModal, setShowUnassignModal] = useState(false);
     const [showChangeStationModal, setShowChangeStationModal] = useState(false);
@@ -32,17 +34,45 @@ export default function VehicleManagementPage({ session }) {
         fetchStations();
     }, []);
 
-    // Filter vehicles
-    const filteredVehicles = vehicles.filter((vehicle) => {
-        if (!searchTerm) return true;
-        const search = searchTerm.toLowerCase();
-        return (
-            vehicle.bike_number?.toLowerCase().includes(search) ||
-            vehicle.model_name?.toLowerCase().includes(search) ||
-            vehicle.assignee_name?.toLowerCase().includes(search) ||
-            vehicle.battery_code?.toLowerCase().includes(search)
-        );
-    });
+    // Helper to determine if vehicle has an active assignment
+    const isVehicleActive = (v) => v.assignment_status === "active";
+
+    // Counts for active (with assignee) and idle
+    const activeCount = vehicles.filter(isVehicleActive).length;
+    const idleCount = vehicles.length - activeCount;
+
+    // Filter and sort vehicles
+    const filteredVehicles = vehicles
+        .filter((vehicle) => {
+            const isActive = isVehicleActive(vehicle);
+
+            // Status filter
+            if (statusFilter === "active" && !isActive) return false;
+            if (statusFilter === "idle" && isActive) return false;
+
+            // Search filter
+            if (!searchTerm) return true;
+            const search = searchTerm.toLowerCase();
+            const stationName = stations.find((s) => s.id === vehicle.station_id)?.name || "";
+            return (
+                vehicle.bike_number?.toLowerCase().includes(search) ||
+                vehicle.model_name?.toLowerCase().includes(search) ||
+                vehicle.assignee_name?.toLowerCase().includes(search) ||
+                vehicle.battery_code?.toLowerCase().includes(search) ||
+                stationName.toLowerCase().includes(search)
+            );
+        })
+        .sort((a, b) => {
+            if (activeFirst) {
+                const aIsActive = isVehicleActive(a) ? 1 : 0;
+                const bIsActive = isVehicleActive(b) ? 1 : 0;
+                if (aIsActive !== bIsActive) {
+                    return bIsActive - aIsActive; // Active / assigned (1) appears before idle (0)
+                }
+            }
+            // Secondary alphabetical/numerical sort by bike number
+            return (a.bike_number || "").localeCompare(b.bike_number || "", undefined, { numeric: true });
+        });
 
     function handleUnassignClick(vehicle) {
         setSelectedVehicle(vehicle);
@@ -103,7 +133,7 @@ export default function VehicleManagementPage({ session }) {
                             Vehicle Management
                         </h1>
                         <p className="text-gray-600 mt-1">
-                            Manage all vehicles ({filteredVehicles.length} total)
+                            Manage all vehicles ({vehicles.length} total • <span className="text-emerald-700 font-semibold">{activeCount} active with assignee</span> • <span className="text-gray-600 font-medium">{idleCount} idle</span>)
                         </p>
                     </div>
 
@@ -114,15 +144,79 @@ export default function VehicleManagementPage({ session }) {
                     </div>
                 </div>
 
-                {/* Search Bar */}
-                <div className="mb-6">
-                    <input
-                        type="text"
-                        placeholder="🔍 Search Vehicle"
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full max-w-md px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
+                {/* Search Bar & Filters */}
+                <div className="mb-6 flex flex-col md:flex-row gap-4 items-center justify-between">
+                    <div className="flex flex-1 flex-wrap gap-3 items-center w-full md:w-auto">
+                        <input
+                            type="text"
+                            placeholder="🔍 Search Chassis, Model, Assignee, Station..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="w-full md:w-72 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-sm"
+                        />
+
+                        {/* Status Filter Segmented Controls */}
+                        <div className="flex items-center gap-1 bg-gray-200/80 p-1 rounded-xl">
+                            <button
+                                type="button"
+                                onClick={() => setStatusFilter("all")}
+                                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                                    statusFilter === "all"
+                                        ? "bg-white text-gray-900 shadow-xs"
+                                        : "text-gray-600 hover:text-gray-900"
+                                }`}
+                            >
+                                All ({vehicles.length})
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setStatusFilter("active")}
+                                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                                    statusFilter === "active"
+                                        ? "bg-emerald-600 text-white shadow-xs"
+                                        : "text-gray-600 hover:text-gray-900"
+                                }`}
+                            >
+                                <span className={`w-2 h-2 rounded-full ${statusFilter === "active" ? "bg-white" : "bg-emerald-500"}`}></span>
+                                Active / Assigned ({activeCount})
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setStatusFilter("idle")}
+                                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                                    statusFilter === "idle"
+                                        ? "bg-blue-600 text-white shadow-xs"
+                                        : "text-gray-600 hover:text-gray-900"
+                                }`}
+                            >
+                                <span className={`w-2 h-2 rounded-full ${statusFilter === "idle" ? "bg-white" : "bg-blue-500"}`}></span>
+                                Idle ({idleCount})
+                            </button>
+                        </div>
+
+                        {/* Active First Sort Toggle */}
+                        <button
+                            type="button"
+                            onClick={() => setActiveFirst(prev => !prev)}
+                            className={`px-3.5 py-2 rounded-xl text-xs font-bold border transition-all flex items-center gap-2 cursor-pointer ${
+                                activeFirst
+                                    ? "bg-blue-50 border-blue-300 text-blue-700 shadow-2xs"
+                                    : "bg-white border-gray-300 text-gray-600 hover:bg-gray-50"
+                            }`}
+                            title="Toggle to view active vehicles with assignees first"
+                        >
+                            <span className={`w-3.5 h-3.5 rounded-full flex items-center justify-center text-[9px] font-bold ${
+                                activeFirst ? "bg-blue-600 text-white" : "border border-gray-400 text-transparent"
+                            }`}>
+                                ✓
+                            </span>
+                            <span>Active First</span>
+                        </button>
+                    </div>
+
+                    <div className="text-xs text-gray-500 font-medium">
+                        Showing {filteredVehicles.length} of {vehicles.length} vehicles
+                    </div>
                 </div>
 
                 {/* Table */}
@@ -230,8 +324,8 @@ export default function VehicleManagementPage({ session }) {
                         </table>
 
                         {filteredVehicles.length === 0 && (
-                            <div className="text-center py-10 text-gray-500">
-                                No vehicles found
+                            <div className="text-center py-12 text-gray-500 font-medium">
+                                No vehicles found matching current filter or search criteria.
                             </div>
                         )}
                     </div>

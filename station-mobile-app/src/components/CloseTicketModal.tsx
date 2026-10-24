@@ -90,7 +90,7 @@ export default function CloseTicketModal({ visible, onClose, ticket, onSuccess }
       const closedAt = new Date().toISOString();
       const costCharged = parseFloat(cost || '0');
 
-      const { error } = await supabase
+      let { error } = await supabase
         .from('tickets')
         .update({
           status: 'closed',
@@ -101,6 +101,24 @@ export default function CloseTicketModal({ visible, onClose, ticket, onSuccess }
           service_duration: durationString,
         })
         .eq('id', ticket.id);
+
+      // Fallback: If DB table has a legacy FK constraint on closed_by pointing to old engineers table
+      if (error && error.message?.includes('tickets_closed_by_fkey')) {
+        console.warn(
+          'Legacy FK constraint on tickets.closed_by detected. Retrying without closed_by field.'
+        );
+        const fallback = await supabase
+          .from('tickets')
+          .update({
+            status: 'closed',
+            closed_at: closedAt,
+            resolution_notes: resolutionNotes.trim(),
+            cost_charged: costCharged,
+            service_duration: durationString,
+          })
+          .eq('id', ticket.id);
+        error = fallback.error;
+      }
 
       if (error) throw new Error(error.message);
 

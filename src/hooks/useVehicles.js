@@ -35,15 +35,15 @@ export function useVehicles() {
 
             // Format data
             const formattedVehicles = (data || []).map(vehicle => {
-                // Get the most recent assignment (assuming no status column)
-                const activeAssignment = vehicle.assignments?.[0];
+                // Find currently active assignment (unassigned_at is null)
+                const activeAssignment = vehicle.assignments?.find(a => !a.unassigned_at) || null;
                 const hasPendingPdi = vehicle.pdi_requests?.some(pdi => pdi.status === 'pending') || false;
 
                 return {
                     ...vehicle,
                     model_name: vehicle.bike_models?.model_name || "-",
                     assignment_id: activeAssignment?.id || null,
-                    assignment_status: (activeAssignment && !activeAssignment.unassigned_at) ? "active" : "idle", // Check if active assignment is actually unassigned
+                    assignment_status: activeAssignment ? "active" : "idle",
                     battery_code: activeAssignment?.battery_code || "-",
                     assignee_name: activeAssignment?.riders?.name || null,
                     has_pending_pdi: hasPendingPdi,
