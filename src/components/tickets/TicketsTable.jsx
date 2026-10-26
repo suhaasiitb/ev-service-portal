@@ -97,14 +97,17 @@ export default function TicketsTable({
                       {t.bike_number_text}
                     </td>
                     <td className="px-3 py-2 whitespace-nowrap text-xs text-slate-300">
-                      {t.customers ? (
-                        <>
-                          <div className="font-semibold text-slate-200">{t.customers.full_name}</div>
-                          <div>{t.customers.phone_number}</div>
-                        </>
-                      ) : (
-                        <span className="text-slate-500 italic">Unknown</span>
-                      )}
+                      {(() => {
+                        const cust = Array.isArray(t.customers) ? t.customers[0] : t.customers;
+                        return cust?.full_name ? (
+                          <>
+                            <div className="font-semibold text-slate-200">{cust.full_name}</div>
+                            {cust.phone_number && <div>{cust.phone_number}</div>}
+                          </>
+                        ) : (
+                          <span className="text-slate-500 italic">Unknown</span>
+                        );
+                      })()}
                     </td>
                     <td className="px-3 py-2 max-w-[260px] truncate">
                       {t.issue_description}
